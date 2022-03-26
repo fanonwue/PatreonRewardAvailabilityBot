@@ -6,6 +6,7 @@ import de.arisendrake.patreonrewardavailabilitybot.model.patreon.Data
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.RewardsAttributes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import org.telegram.abilitybots.api.bot.AbilityBot
 import org.telegram.abilitybots.api.objects.Ability
@@ -43,9 +44,9 @@ class NotificationTelegramBot(
                 if (it.arguments().isEmpty()) {
                     silent.send("Reward ID expected as first argument", it.chatId())
                 } else {
-                    val id = it.firstArg().toLong()
-                    RewardObservationList.add(id)
-                    silent.send("Reward ID $id successfully added", it.chatId())
+                    val idList = getIdsFromArguments(it.arguments())
+                    RewardObservationList.add(idList)
+                    silent.send("Reward IDs [${idList.joinToString(", ")}] successfully added", it.chatId())
                 }
             } }
             .post {  }
@@ -62,9 +63,9 @@ class NotificationTelegramBot(
                 if (it.arguments().isEmpty()) {
                     silent.send("Reward ID expected as first argument", it.chatId())
                 } else {
-                    val id = it.firstArg().toLong()
-                    RewardObservationList.remove(id)
-                    silent.send("Reward ID $id successfully removed", it.chatId())
+                    val idList = getIdsFromArguments(it.arguments())
+                    RewardObservationList.remove(idList)
+                    silent.send("Reward IDs [${idList.joinToString(", ")}] successfully removed", it.chatId())
                 }
             } }
             .post {  }
@@ -139,5 +140,11 @@ class NotificationTelegramBot(
         """.trimIndent()
     }
 
-
+    private fun getIdsFromArguments(arguments: Array<String>) = arguments.map {
+        try {
+            it.toLong()
+        } catch (e: NumberFormatException) {
+            null
+        }
+    }.filterNotNull()
 }
