@@ -14,12 +14,13 @@ import org.telegram.abilitybots.api.objects.Locality
 import org.telegram.abilitybots.api.objects.Privacy
 import org.telegram.abilitybots.api.toggle.BareboneToggle
 import org.telegram.telegrambots.meta.api.methods.ActionType
-import org.telegram.telegrambots.meta.api.methods.ParseMode
+import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands
 import org.telegram.telegrambots.meta.api.methods.send.SendChatAction
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage.SendMessageBuilder
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
+import org.telegram.telegrambots.meta.api.objects.commands.BotCommand
+import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault
+
 
 class NotificationTelegramBot(
     apiKey: String,
@@ -30,6 +31,21 @@ class NotificationTelegramBot(
 
     companion object {
         private val bareboneToggle = BareboneToggle()
+    }
+
+    override fun onRegister() {
+        super<AbilityBot>.onRegister()
+        val setMyCommands = SetMyCommands.builder()
+            .commands(abilities().values.map {
+                BotCommand.builder()
+                    .command(it.name())
+                    .description(it.info() ?: "default")
+                    .build()
+            })
+            .scope(BotCommandScopeDefault())
+            .build()
+
+        execute(setMyCommands)
     }
 
     override fun creatorId() = Config.telegramCreatorId
