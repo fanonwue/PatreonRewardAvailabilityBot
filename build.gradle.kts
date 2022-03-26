@@ -53,7 +53,7 @@ tasks {
         manifest {
             attributes("Main-Class" to "de.arisendrake.patreonrewardavailabilitybot.MainKt")
         }
-        archiveFileName.set("notifications-bot.jar")
+        archiveFileName.set("patreon-availability-bot.jar")
     }
 }
 
