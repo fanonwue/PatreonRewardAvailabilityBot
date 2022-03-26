@@ -11,7 +11,7 @@ import kotlin.io.path.inputStream
 import kotlin.io.path.outputStream
 
 object RewardObservationList {
-    val rewardSet get() = rewardSetInternal.toSet()
+    val rewardSet get() = synchronized(rewardSetInternal) { rewardSetInternal.toSet() }
     private val file = Config.rewardsListFile
     private val rewardSetInternal = mutableSetOf<Long>()
     private val serializer = Json
