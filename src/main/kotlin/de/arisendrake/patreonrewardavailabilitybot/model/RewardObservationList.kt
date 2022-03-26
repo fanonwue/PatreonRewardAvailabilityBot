@@ -6,6 +6,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import java.util.Collections
+import kotlin.io.path.exists
 import kotlin.io.path.inputStream
 import kotlin.io.path.outputStream
 
@@ -19,6 +20,7 @@ object RewardObservationList {
 
     init {
         synchronized(rewardSetInternal) {
+            if (!file.exists()) saveToFile()
             readFromFile()
         }
     }
