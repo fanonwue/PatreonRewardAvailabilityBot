@@ -19,15 +19,15 @@ class App {
     val updateJob : Job? = null
     private var supervisorJob = SupervisorJob()
     private val fetcher = PatreonFetcher()
-    val botsApi = TelegramBotsApi(DefaultBotSession::class.java)
+    private val botsApi = TelegramBotsApi(DefaultBotSession::class.java)
 
-    val coroutineScope by lazy {
+    private val coroutineScope by lazy {
         val executor = Executors.newScheduledThreadPool(2)
         val context = executor.asCoroutineDispatcher() + supervisorJob
         CoroutineScope(context)
     }
 
-    val notificationTelegramBot by lazy {
+    private val notificationTelegramBot by lazy {
         NotificationTelegramBot(
             Config.telegramApiKey,
             "@patreon_rewards_bot",
@@ -59,7 +59,7 @@ class App {
 
     fun start() {
         botsApi.registerBot(notificationTelegramBot)
-        supervisorJob?.start()
+        supervisorJob.start()
     }
 
     fun onRewardAvailability(reward: Data<RewardsAttributes>) {
