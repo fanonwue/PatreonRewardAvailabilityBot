@@ -13,7 +13,7 @@ class App {
 
     companion object {
         @JvmStatic
-        val logger = LoggerFactory.getLogger(this::class.java)
+        val logger = LoggerFactory.getLogger(App::class.java)
     }
 
     val updateJob : Job? = null
