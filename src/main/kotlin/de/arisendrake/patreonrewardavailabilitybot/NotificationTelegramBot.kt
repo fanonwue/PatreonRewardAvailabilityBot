@@ -110,7 +110,8 @@ class NotificationTelegramBot(
                     async {
                         val reward = fetcher.fetchReward(it)
                         val campaign = fetcher.fetchCampaign(reward.relationships.campaign?.data!!.id)
-                        it to formatForList(reward, campaign)
+                        // Create an artificial combined key for sorting
+                        "${campaign.attributes.name}#${reward.attributes.amount}" to formatForList(reward, campaign)
                     }
                 }.awaitAll().sortedBy { it.first }.joinToString(
                     separator = "\n-----------------------------------------\n"
