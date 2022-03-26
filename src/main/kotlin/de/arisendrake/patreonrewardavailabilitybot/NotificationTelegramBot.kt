@@ -90,20 +90,23 @@ class NotificationTelegramBot(
                     it.chatId = context.chatId().toString()
                 })
 
-                val messageContent = async {
-                    RewardObservationList.rewardSet.sortedBy { it }.map {
+                var messageContent = RewardObservationList.rewardSet.map {
+                    async {
                         val reward = fetcher.fetchReward(it)
                         val campaign = fetcher.fetchCampaign(reward.relationships.campaign?.data!!.id)
-                        formatForList(reward, campaign)
-                    }.joinToString(
-                        separator = "\n-----------------------------------------\n"
-                    )
-                }
+                        it to formatForList(reward, campaign)
+                    }
+                }.awaitAll().sortedBy { it.first }.joinToString(
+                    separator = "\n-----------------------------------------\n"
+                ) { it.second }
+
+
+                if (messageContent.isEmpty()) messageContent = "No observed rewards found!"
 
                 context.bot().execute(EditMessageText().also {
                     it.chatId = context.chatId().toString()
                     it.messageId = message.messageId
-                    it.text = messageContent.await()
+                    it.text = messageContent
                     it.enableMarkdown(true)
                     it.disableWebPagePreview()
                 })
