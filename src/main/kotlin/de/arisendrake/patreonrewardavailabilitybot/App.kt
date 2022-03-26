@@ -40,18 +40,26 @@ class App {
         logger.info("Starting Coroutine Scheduler")
         coroutineScope.launch {
             while (isActive) {
+                logger.info("Checking reward availability")
+                var availabilityCounter = 0
                 RewardObservationList.rewardSet.map { id ->
+                    logger.debug("Checking reward availability for reward $id")
                     launch {
                         try {
                             val result = fetcher.checkAvailability(id)
                             result.first?.let { remainingCount ->
-                                if (remainingCount > 0) onRewardAvailability(result.second)
+                                if (remainingCount > 0) {
+                                    logger.debug("$remainingCount slots for available for reward $id")
+                                    onRewardAvailability(result.second)
+                                    availabilityCounter++
+                                }
                             }
                         } catch (t: Throwable) {
                             t.printStackTrace()
                         }
                     }
                 }.joinAll()
+                logger.info("$availabilityCounter available rewards found")
                 delay(Config.interval.toMillis())
             }
         }
