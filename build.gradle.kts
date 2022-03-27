@@ -26,9 +26,6 @@ dependencies {
     implementation("org.telegram:telegrambots:5.7.1")
     implementation("org.telegram:telegrambots-abilities:5.7.1")
 
-    implementation("org.apache.logging.log4j:log4j-api:2.17.2")
-    implementation("org.apache.logging.log4j:log4j-core:2.17.2")
-
     // https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-slf4j18-impl
     implementation("org.apache.logging.log4j:log4j-slf4j18-impl:2.17.2")
 
@@ -43,16 +40,23 @@ tasks.getByName<Test>("test") {
     useJUnitPlatform()
 }
 
+
 tasks {
     named<Test>("test") {
         useJUnitPlatform()
     }
 
+    named<Jar>("jar") {
+        manifest {
+            attributes(
+                "Main-Class" to "de.arisendrake.patreonrewardavailabilitybot.MainKt",
+                "Multi-Release" to true
+            )
+        }
+    }
+
     named<ShadowJar>("shadowJar"){
         mergeServiceFiles()
-        manifest {
-            attributes("Main-Class" to "de.arisendrake.patreonrewardavailabilitybot.MainKt")
-        }
         archiveFileName.set("patreon-availability-bot.jar")
     }
 }
