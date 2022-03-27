@@ -37,7 +37,10 @@ class App {
     }
 
     fun setup() {
-        logger.info("Starting Coroutine Scheduler")
+        logger.info("""
+            Starting coroutine scheduler with an interval of ${Config.interval.toSeconds()}s and with an initial
+            delay of ${Config.initialDelay.toSeconds()}s
+        """.trimIndent().withoutNewlines())
         coroutineScope.launch {
             while (isActive) {
                 logger.info("Checking reward availability")
