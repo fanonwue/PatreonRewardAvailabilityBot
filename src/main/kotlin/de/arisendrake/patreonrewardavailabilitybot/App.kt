@@ -4,6 +4,7 @@ import de.arisendrake.patreonrewardavailabilitybot.model.RewardObservationList
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.Data
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.RewardsAttributes
 import kotlinx.coroutines.*
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.telegram.telegrambots.meta.TelegramBotsApi
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession
@@ -13,7 +14,7 @@ class App {
 
     companion object {
         @JvmStatic
-        val logger = LoggerFactory.getLogger(App::class.java)
+        val logger: Logger = LoggerFactory.getLogger(App::class.java)
     }
 
     val updateJob : Job? = null

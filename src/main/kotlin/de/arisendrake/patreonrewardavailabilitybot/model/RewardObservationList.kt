@@ -4,6 +4,7 @@ import de.arisendrake.patreonrewardavailabilitybot.Config
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.Collections
 import kotlin.io.path.exists
@@ -16,7 +17,9 @@ object RewardObservationList {
     private val rewardSetInternal = mutableSetOf<Long>()
     private val serializer = Json
     private val charset = Charsets.UTF_8
-    private val logger = LoggerFactory.getLogger(RewardObservationList.javaClass)
+
+    @JvmStatic
+    private val logger: Logger = LoggerFactory.getLogger(RewardObservationList.javaClass)
 
     init {
         synchronized(rewardSetInternal) {
