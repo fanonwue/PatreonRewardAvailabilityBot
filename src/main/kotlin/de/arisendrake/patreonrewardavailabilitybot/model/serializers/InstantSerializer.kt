@@ -7,10 +7,11 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import java.time.Instant
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 object InstantSerializer : KSerializer<Instant> {
-    private val formatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME
+    val formatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME.withZone(ZoneId.of("UTC"))
 
     override fun serialize(encoder: Encoder, value: Instant) {
         encoder.encodeString(formatter.format(value))

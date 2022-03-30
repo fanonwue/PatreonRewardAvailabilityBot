@@ -18,6 +18,7 @@ import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands
 import org.telegram.telegrambots.meta.api.methods.send.SendChatAction
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText
+import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault
 
@@ -61,8 +62,21 @@ class NotificationTelegramBot(
                     silent.send("Reward ID expected as first argument", it.chatId())
                 } else {
                     val idList = getIdsFromArguments(it.arguments())
-                    RewardObservationList.add(idList)
-                    silent.send("Reward IDs [${idList.joinToString(", ")}] successfully added", it.chatId())
+                    val filteredIdList = idList.filterNot { RewardObservationList.rewardMap.containsKey(it) }
+
+                    var message = ""
+
+                    if (filteredIdList.isNotEmpty()) {
+                        RewardObservationList.add(filteredIdList)
+                        message += "Reward IDs [${filteredIdList.joinToString(", ")}] successfully added"
+                        if (idList.size > filteredIdList.size) {
+                            message += "\nSome IDs have been added already and were filtered out"
+                        }
+                    } else {
+                        message += "All IDs have been added already. No new ID has been added."
+                    }
+                    silent.send(message, it.chatId())
+
                 }
             } }
             .post {  }
@@ -106,9 +120,9 @@ class NotificationTelegramBot(
                     it.chatId = context.chatId().toString()
                 })
 
-                var messageContent = RewardObservationList.rewardSet.map {
+                var messageContent = RewardObservationList.rewardMap.values.map {
                     async {
-                        val reward = fetcher.fetchReward(it)
+                        val reward = fetcher.fetchReward(it.id)
                         val campaign = fetcher.fetchCampaign(reward.relationships.campaign?.data!!.id)
                         // Create an artificial combined key for sorting
                         (campaign.attributes.name to reward.attributes.amount) to formatForList(reward, campaign)
@@ -133,10 +147,13 @@ class NotificationTelegramBot(
             .build()
     }
 
-    suspend fun sendAvailabilityNotification(reward: Data<RewardsAttributes>, campaign: Data<CampaignAttributes>) {
+    suspend fun sendAvailabilityNotification(
+        reward: Data<RewardsAttributes>,
+        campaign: Data<CampaignAttributes>
+    ) : Message? {
         val ca = campaign.attributes
         val ra = reward.attributes
-        silent.sendMd(
+        return silent.sendMd(
             """
                 New Reward available for [${ca.name}](${ca.url})!
                 
@@ -148,7 +165,7 @@ class NotificationTelegramBot(
                 ([Reward ${reward.id}](${ra.fullUrl}))
             """.trimIndent(),
             creatorId()
-        )
+        ).orElse(null)
     }
 
     private fun formatForList(reward: Data<RewardsAttributes>, campaign: Data<CampaignAttributes>) = let {

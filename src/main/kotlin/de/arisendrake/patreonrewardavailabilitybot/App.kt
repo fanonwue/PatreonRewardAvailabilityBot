@@ -3,11 +3,14 @@ package de.arisendrake.patreonrewardavailabilitybot
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardObservationList
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.Data
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.RewardsAttributes
+import de.arisendrake.patreonrewardavailabilitybot.model.serializers.InstantSerializer
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.withLock
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.telegram.telegrambots.meta.TelegramBotsApi
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession
+import java.time.Instant
 import java.util.concurrent.Executors
 
 class App {
@@ -46,16 +49,19 @@ class App {
             while (isActive) {
                 logger.info("Checking reward availability")
                 var availabilityCounter = 0
-                RewardObservationList.rewardSet.map { id ->
-                    logger.debug("Checking reward availability for reward $id")
+                RewardObservationList.rewardMap.values.map { entry ->
+                    logger.debug("Checking reward availability for reward $entry")
                     launch {
                         try {
-                            val result = fetcher.checkAvailability(id)
+                            val result = fetcher.checkAvailability(entry.id)
                             result.first?.let { remainingCount ->
                                 if (remainingCount > 0) {
-                                    logger.debug("$remainingCount slots for available for reward $id")
+                                    logger.debug("$remainingCount slots for available for reward $entry")
                                     onRewardAvailability(result.second)
                                     availabilityCounter++
+                                } else {
+                                    entry.withLock { entry.availableSince = null }
+                                    RewardObservationList.update(entry)
                                 }
                             }
                         } catch (t: Throwable) {
@@ -74,9 +80,21 @@ class App {
         supervisorJob.start()
     }
 
-    fun onRewardAvailability(reward: Data<RewardsAttributes>) {
-        coroutineScope.launch {
-            notificationTelegramBot.sendAvailabilityNotification(reward, fetcher.fetchCampaign(reward))
-        }
+    fun onRewardAvailability(reward: Data<RewardsAttributes>) = runBlocking {
+        RewardObservationList.rewardMap[reward.id]?.also { entry ->
+            entry.withLock { if (entry.availableSince == null) entry.availableSince = Instant.now() }
+            try {
+                if (entry.lastNotified == null || entry.availableSince!!.isAfter(entry.lastNotified)) {
+                    val message = notificationTelegramBot.sendAvailabilityNotification(reward, fetcher.fetchCampaign(reward))
+                    message?.also { entry.lastNotified = Instant.now() }
+                    logger.info("Notification for the availability of reward ${entry.id} sent at ${InstantSerializer.formatter.format(entry.lastNotified)}")
+                } else {
+                    logger.info("Notification for the availability of reward ${entry.id} has been sent already. Skipping.")
+                }
+
+            } finally {
+                RewardObservationList.update(entry)
+            }
+        } ?: logger.warn("No RewardEntry found for rewardId ${reward.id}")
     }
 }
