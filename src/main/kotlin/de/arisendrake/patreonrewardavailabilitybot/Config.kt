@@ -1,5 +1,6 @@
 package de.arisendrake.patreonrewardavailabilitybot
 
+import kotlinx.serialization.json.Json
 import java.io.FileInputStream
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -37,6 +38,12 @@ object Config {
     val baseDomain get() = getString("baseDomain", "https://www.patreon.com")
 
     val rewardsListFile get() = getPath("run.rewardsListFile", "data/rewards.json")
+
+    val jsonSerializer get() = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        encodeDefaults = true
+    }
 
 
     private fun getString(key: String, default: String = "")

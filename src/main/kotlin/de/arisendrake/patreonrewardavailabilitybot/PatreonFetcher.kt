@@ -15,10 +15,7 @@ class PatreonFetcher {
     private val BASE_URI = "${Config.baseDomain}/api"
     val client = HttpClient(CIO) {
         install(JsonFeature) {
-            serializer = KotlinxSerializer(kotlinx.serialization.json.Json {
-                ignoreUnknownKeys = true
-                isLenient = true
-            })
+            serializer = KotlinxSerializer(Config.jsonSerializer)
         }
     }
 

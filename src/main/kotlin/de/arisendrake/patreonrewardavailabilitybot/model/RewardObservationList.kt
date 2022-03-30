@@ -15,7 +15,7 @@ object RewardObservationList {
     val rewardSet get() = synchronized(rewardSetInternal) { rewardSetInternal.toSet() }
     private val file = Config.rewardsListFile
     private val rewardSetInternal = mutableSetOf<Long>()
-    private val serializer = Json
+    private val serializer = Config.jsonSerializer
     private val charset = Charsets.UTF_8
 
     @JvmStatic
