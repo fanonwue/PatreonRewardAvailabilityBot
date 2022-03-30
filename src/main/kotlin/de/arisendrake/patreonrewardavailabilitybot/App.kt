@@ -60,8 +60,12 @@ class App {
                                     onRewardAvailability(result.second)
                                     availabilityCounter++
                                 } else {
-                                    entry.withLock { entry.availableSince = null }
-                                    RewardObservationList.update(entry)
+                                    entry.withLock {
+                                        if (entry.lastNotified != null) {
+                                            entry.lastNotified = null
+                                            RewardObservationList.update(entry)
+                                        }
+                                    }
                                 }
                             }
                         } catch (t: Throwable) {
