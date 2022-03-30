@@ -90,6 +90,7 @@ object RewardObservationList {
     }
 
     private fun migrateDataV1toV2(rewardString: String) = let {
+        logger.info("Found V1 data format, migrating to V2")
         val dataV1 = parseRewardsDataV1(rewardString)
         RewardsDataV2(2, dataV1.data.map { RewardEntry(it) })
     }
