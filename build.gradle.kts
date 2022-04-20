@@ -23,7 +23,7 @@ dependencies {
     implementation("io.ktor:ktor-client-cio:2.0.0")
     implementation("io.ktor:ktor-client-serialization:2.0.0")
 
-    implementation("org.telegram:telegrambots:5.7.1")
+    implementation("org.telegram:telegrambots:6.0.1")
     implementation("org.telegram:telegrambots-abilities:5.7.1")
 
     implementation("org.apache.logging.log4j:log4j-slf4j18-impl:2.17.2")
