@@ -21,7 +21,7 @@ dependencies {
 
     implementation("io.ktor:ktor-client-core:2.0.2")
     implementation("io.ktor:ktor-client-cio:2.0.2")
-    implementation("io.ktor:ktor-client-content-negotiation:2.0.1")
+    implementation("io.ktor:ktor-client-content-negotiation:2.0.2")
     implementation("io.ktor:ktor-serialization-kotlinx-json:2.0.2")
 
     implementation("org.telegram:telegrambots:6.0.1")
