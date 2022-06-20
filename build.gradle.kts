@@ -1,7 +1,7 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
-    kotlin("jvm") version "1.6.21"
+    kotlin("jvm") version "1.7.0"
     kotlin("plugin.serialization") version "1.6.21"
     java
     application
@@ -17,12 +17,12 @@ repositories {
 
 dependencies {
     implementation(kotlin("stdlib"))
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.3")
 
-    implementation("io.ktor:ktor-client-core:2.0.1")
+    implementation("io.ktor:ktor-client-core:2.0.2")
     implementation("io.ktor:ktor-client-cio:2.0.1")
     implementation("io.ktor:ktor-client-content-negotiation:2.0.1")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:2.0.1")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.0.2")
 
     implementation("org.telegram:telegrambots:6.0.1")
     implementation("org.telegram:telegrambots-abilities:6.0.1")
