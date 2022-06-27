@@ -25,7 +25,7 @@ dependencies {
     implementation("io.ktor:ktor-serialization-kotlinx-json:2.0.2")
 
     implementation("org.telegram:telegrambots:6.0.1")
-    implementation("org.telegram:telegrambots-abilities:6.0.1")
+    implementation("org.telegram:telegrambots-abilities:6.1.0")
 
     implementation("org.apache.logging.log4j:log4j-slf4j18-impl:2.17.2")
 
