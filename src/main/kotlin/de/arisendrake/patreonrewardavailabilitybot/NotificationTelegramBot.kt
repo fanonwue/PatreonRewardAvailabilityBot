@@ -1,5 +1,6 @@
 package de.arisendrake.patreonrewardavailabilitybot
 
+import de.arisendrake.patreonrewardavailabilitybot.model.RewardEntry
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardObservationList
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.CampaignAttributes
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.Data
@@ -164,6 +165,13 @@ class NotificationTelegramBot(
                 
                 ([Reward ${reward.id}](${ra.fullUrl}))
             """.trimIndent(),
+            creatorId()
+        ).orElse(null)
+    }
+
+    suspend fun sendMissingRewardNotification(entry: RewardEntry) : Message? {
+        return silent.send(
+            "WARNING: Reward with ID ${entry.id} could not be found. It may have been removed.",
             creatorId()
         ).orElse(null)
     }

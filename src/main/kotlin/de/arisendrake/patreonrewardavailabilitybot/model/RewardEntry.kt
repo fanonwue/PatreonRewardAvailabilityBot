@@ -14,7 +14,8 @@ data class RewardEntry(
     @Serializable(with = InstantSerializer::class)
     var availableSince: Instant? = null,
     @Serializable(with = InstantSerializer::class)
-    var lastNotified: Instant? = null
+    var lastNotified: Instant? = null,
+    var isMissing: Boolean = false
 ) {
     @Transient
     private val mutex = Mutex()

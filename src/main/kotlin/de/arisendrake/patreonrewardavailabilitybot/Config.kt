@@ -27,6 +27,10 @@ object Config {
         props
     }
 
+    val removeMissingRewards get() = getBoolean("run.removeMissingRewards", false)
+
+    val notifyOnMissingRewards get() = getBoolean("run.notifyOnMissingRewards", true)
+
     val telegramCreatorId get() = getLong("telegram.creatorId", 0)
 
     val telegramApiKey get() = getString("telegram.api.key", "")

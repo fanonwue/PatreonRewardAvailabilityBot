@@ -38,7 +38,7 @@ object RewardObservationList {
                 }
             }
         }
-        logger.info("Saved ${rewardMap.size} Reward IDs to disk")
+        logger.debug("Saved ${rewardMap.size} Reward IDs to disk")
     }
 
     fun add(rewardList: Iterable<RewardEntry>) = synchronized(rewardMapInternal) {
@@ -68,6 +68,7 @@ object RewardObservationList {
     fun remove(rewardList: Iterable<Long>) = synchronized(rewardMapInternal) {
         rewardMapInternal.removeAll(rewardList)
         saveToFile()
+        logger.info("Removed reward entries: $rewardList")
     }
 
 

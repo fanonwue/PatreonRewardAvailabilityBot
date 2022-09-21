@@ -1,11 +1,12 @@
 package de.arisendrake.patreonrewardavailabilitybot
 
+import de.arisendrake.patreonrewardavailabilitybot.exceptions.CampaignNotFoundException
+import de.arisendrake.patreonrewardavailabilitybot.exceptions.RewardNotFoundException
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardObservationList
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.Data
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.RewardsAttributes
 import de.arisendrake.patreonrewardavailabilitybot.model.serializers.InstantSerializer
 import kotlinx.coroutines.*
-import kotlinx.coroutines.sync.withLock
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.telegram.telegrambots.meta.TelegramBotsApi
@@ -54,6 +55,9 @@ class App {
                     launch {
                         try {
                             val result = fetcher.checkAvailability(entry.id)
+                            // Reward was found, so it's not missing
+                            entry.isMissing = false
+                            RewardObservationList.update(entry)
                             result.first?.let { remainingCount ->
                                 if (remainingCount > 0) {
                                     logger.debug("$remainingCount slots for available for reward $entry")
@@ -68,6 +72,17 @@ class App {
                                     }
                                 }
                             }
+                        } catch (e: RewardNotFoundException) {
+                            logger.warn(e.message ?: "Reward ${entry.id} not found")
+                            if (Config.removeMissingRewards) {
+                                logger.info("Removing missing reward ${entry.id} from the rewards list")
+                                RewardObservationList.remove(entry.id)
+                            } else if (Config.notifyOnMissingRewards && !entry.isMissing) {
+                                logger.info("Notifying user of missing reward ${entry.id}")
+                                notificationTelegramBot.sendMissingRewardNotification(entry)
+                            }
+                            entry.isMissing = true
+                            RewardObservationList.update(entry)
                         } catch (t: Throwable) {
                             t.printStackTrace()
                         }
@@ -89,13 +104,24 @@ class App {
             entry.withLock { if (entry.availableSince == null) entry.availableSince = Instant.now() }
             try {
                 if (entry.lastNotified == null || entry.availableSince!!.isAfter(entry.lastNotified)) {
-                    val message = notificationTelegramBot.sendAvailabilityNotification(reward, fetcher.fetchCampaign(reward))
+                    val message =
+                        notificationTelegramBot.sendAvailabilityNotification(reward, fetcher.fetchCampaign(reward))
                     message?.also { entry.lastNotified = Instant.now() }
-                    logger.info("Notification for the availability of reward ${entry.id} sent at ${InstantSerializer.formatter.format(entry.lastNotified)}")
+                    logger.info(
+                        "Notification for the availability of reward ${entry.id} sent at ${
+                            InstantSerializer.formatter.format(
+                                entry.lastNotified
+                            )
+                        }"
+                    )
                 } else {
                     logger.info("Notification for the availability of reward ${entry.id} has been sent already. Skipping.")
                 }
 
+            } catch (e: CampaignNotFoundException) {
+                logger.warn(e.message ?: "Campaign for reward ${entry.id} not found")
+            } catch (t: Throwable) {
+                t.printStackTrace()
             } finally {
                 RewardObservationList.update(entry)
             }
