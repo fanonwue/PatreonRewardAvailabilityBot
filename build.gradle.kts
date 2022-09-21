@@ -27,7 +27,7 @@ dependencies {
     implementation("org.telegram:telegrambots:6.1.0")
     implementation("org.telegram:telegrambots-abilities:6.1.0")
 
-    implementation("org.apache.logging.log4j:log4j-slf4j18-impl:2.17.2")
+    implementation("org.apache.logging.log4j:log4j-slf4j18-impl:2.18.0")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.1")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
