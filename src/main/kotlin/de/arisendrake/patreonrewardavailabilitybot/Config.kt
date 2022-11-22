@@ -31,6 +31,8 @@ object Config {
 
     val notifyOnMissingRewards get() = getBoolean("run.notifyOnMissingRewards", true)
 
+    val notifyOnForbiddenRewards get() = getBoolean("run.notifyOnForbiddenRewards", true)
+
     val telegramCreatorId get() = getLong("telegram.creatorId", 0)
 
     val telegramApiKey get() = getString("telegram.api.key", "")

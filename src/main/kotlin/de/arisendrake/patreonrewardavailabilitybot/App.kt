@@ -1,6 +1,7 @@
 package de.arisendrake.patreonrewardavailabilitybot
 
 import de.arisendrake.patreonrewardavailabilitybot.exceptions.CampaignNotFoundException
+import de.arisendrake.patreonrewardavailabilitybot.exceptions.RewardForbiddenException
 import de.arisendrake.patreonrewardavailabilitybot.exceptions.RewardNotFoundException
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardObservationList
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.Data
@@ -80,6 +81,14 @@ class App {
                             } else if (Config.notifyOnMissingRewards && !entry.isMissing) {
                                 logger.info("Notifying user of missing reward ${entry.id}")
                                 notificationTelegramBot.sendMissingRewardNotification(entry)
+                            }
+                            entry.isMissing = true
+                            RewardObservationList.update(entry)
+                        } catch (e: RewardForbiddenException) {
+                            logger.warn(e.message ?: "Access to reward ${entry.id} is forbidden")
+                            if (Config.notifyOnForbiddenRewards && !entry.isMissing) {
+                                logger.info("Notifying user of reward ${entry.id} with forbidden access")
+                                notificationTelegramBot.sendForbiddenRewardNotification(entry)
                             }
                             entry.isMissing = true
                             RewardObservationList.update(entry)

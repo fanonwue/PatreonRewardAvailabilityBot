@@ -1,6 +1,8 @@
 package de.arisendrake.patreonrewardavailabilitybot
 
+import de.arisendrake.patreonrewardavailabilitybot.exceptions.CampaignForbiddenException
 import de.arisendrake.patreonrewardavailabilitybot.exceptions.CampaignNotFoundException
+import de.arisendrake.patreonrewardavailabilitybot.exceptions.RewardForbiddenException
 import de.arisendrake.patreonrewardavailabilitybot.exceptions.RewardNotFoundException
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.CampaignAttributes
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.Data
@@ -44,6 +46,7 @@ class PatreonFetcher {
         val result = client.get("$BASE_URI/rewards/$rewardId")
 
         if (result.status == HttpStatusCode.NotFound) throw RewardNotFoundException("Reward $rewardId gave 404 Not Found")
+        if (result.status == HttpStatusCode.Forbidden) throw RewardForbiddenException("Access to reward $rewardId is forbidden")
         if (result.status != HttpStatusCode.OK) throw RuntimeException("Received error while fetching reward $rewardId, status ${result.status}")
 
         result.body<Response<RewardsAttributes>>().data
@@ -54,6 +57,7 @@ class PatreonFetcher {
         val result = client.get("$BASE_URI/campaigns/$campaignId")
 
         if (result.status == HttpStatusCode.NotFound) throw CampaignNotFoundException("Campaign $campaignId gave 404 Not Found")
+        if (result.status == HttpStatusCode.Forbidden) throw CampaignForbiddenException("Access to campaign $campaignId is forbidden")
         if (result.status != HttpStatusCode.OK) throw RuntimeException("Received error while fetching campaing $campaignId, status ${result.status}")
 
         result.body<Response<CampaignAttributes>>().data

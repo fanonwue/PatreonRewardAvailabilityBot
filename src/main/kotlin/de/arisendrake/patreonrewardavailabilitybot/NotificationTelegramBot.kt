@@ -176,6 +176,13 @@ class NotificationTelegramBot(
         ).orElse(null)
     }
 
+    suspend fun sendForbiddenRewardNotification(entry: RewardEntry) : Message? {
+        return silent.send(
+            "WARNING: Access to reward with ID ${entry.id} is forbidden. It may have been removed.",
+            creatorId()
+        ).orElse(null)
+    }
+
     private fun formatForList(reward: Data<RewardsAttributes>, campaign: Data<CampaignAttributes>) = let {
         val ca = campaign.attributes
         val ra = reward.attributes
