@@ -1,8 +1,8 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
-    kotlin("jvm") version "1.7.10"
-    kotlin("plugin.serialization") version "1.7.10"
+    kotlin("jvm") version "1.8.10"
+    kotlin("plugin.serialization") version "1.8.10"
     java
     application
     id("com.github.johnrengelman.shadow") version "7.1.2"
@@ -19,13 +19,13 @@ dependencies {
     implementation(kotlin("stdlib"))
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1")
 
-    implementation("io.ktor:ktor-client-core:2.1.3")
-    implementation("io.ktor:ktor-client-cio:2.1.3")
-    implementation("io.ktor:ktor-client-content-negotiation:2.1.3")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:2.1.3")
+    implementation("io.ktor:ktor-client-core:2.2.3")
+    implementation("io.ktor:ktor-client-cio:2.2.3")
+    implementation("io.ktor:ktor-client-content-negotiation:2.2.3")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.2.3")
 
-    implementation("org.telegram:telegrambots:6.3.0")
-    implementation("org.telegram:telegrambots-abilities:6.3.0")
+    implementation("org.telegram:telegrambots:6.4.0")
+    implementation("org.telegram:telegrambots-abilities:6.4.0")
 
     implementation("org.apache.logging.log4j:log4j-slf4j18-impl:2.18.0")
 
