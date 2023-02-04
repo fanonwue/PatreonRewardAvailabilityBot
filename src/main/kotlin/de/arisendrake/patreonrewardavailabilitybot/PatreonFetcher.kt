@@ -1,9 +1,6 @@
 package de.arisendrake.patreonrewardavailabilitybot
 
-import de.arisendrake.patreonrewardavailabilitybot.exceptions.CampaignForbiddenException
-import de.arisendrake.patreonrewardavailabilitybot.exceptions.CampaignNotFoundException
-import de.arisendrake.patreonrewardavailabilitybot.exceptions.RewardForbiddenException
-import de.arisendrake.patreonrewardavailabilitybot.exceptions.RewardNotFoundException
+import de.arisendrake.patreonrewardavailabilitybot.exceptions.*
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.CampaignAttributes
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.Data
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.Response
@@ -41,23 +38,23 @@ class PatreonFetcher {
 
 
 
-    @Throws(RewardNotFoundException::class, RuntimeException::class)
+    @Throws(RewardUnavailableException::class, RuntimeException::class)
     suspend fun fetchReward(rewardId: Long) = let {
         val result = client.get("$BASE_URI/rewards/$rewardId")
 
-        if (result.status == HttpStatusCode.NotFound) throw RewardNotFoundException("Reward $rewardId gave 404 Not Found")
-        if (result.status == HttpStatusCode.Forbidden) throw RewardForbiddenException("Access to reward $rewardId is forbidden")
+        if (result.status == HttpStatusCode.NotFound) throw RewardNotFoundException("Reward $rewardId gave 404 Not Found", rewardId)
+        if (result.status == HttpStatusCode.Forbidden) throw RewardForbiddenException("Access to reward $rewardId is forbidden", rewardId)
         if (result.status != HttpStatusCode.OK) throw RuntimeException("Received error while fetching reward $rewardId, status ${result.status}")
 
         result.body<Response<RewardsAttributes>>().data
     }
 
-    @Throws(CampaignNotFoundException::class, RuntimeException::class)
+    @Throws(CampaignUnavailableException::class, RuntimeException::class)
     suspend fun fetchCampaign(campaignId: Long) = let {
         val result = client.get("$BASE_URI/campaigns/$campaignId")
 
-        if (result.status == HttpStatusCode.NotFound) throw CampaignNotFoundException("Campaign $campaignId gave 404 Not Found")
-        if (result.status == HttpStatusCode.Forbidden) throw CampaignForbiddenException("Access to campaign $campaignId is forbidden")
+        if (result.status == HttpStatusCode.NotFound) throw CampaignNotFoundException("Campaign $campaignId gave 404 Not Found", campaignId)
+        if (result.status == HttpStatusCode.Forbidden) throw CampaignForbiddenException("Access to campaign $campaignId is forbidden", campaignId)
         if (result.status != HttpStatusCode.OK) throw RuntimeException("Received error while fetching campaing $campaignId, status ${result.status}")
 
         result.body<Response<CampaignAttributes>>().data

@@ -1,7 +1,4 @@
 package de.arisendrake.patreonrewardavailabilitybot.exceptions
 
-class RewardForbiddenException(message: String?, cause: Throwable?) : ResourceForbiddenException(message, cause) {
-    constructor() : this(null, null)
-    constructor(message: String?) : this(message, null)
-    constructor(cause: Throwable?) : this(null, cause)
-}
+class RewardForbiddenException(message: String? = null, rewardId: Long? = null, cause: Throwable? = null)
+    : RewardUnavailableException(message, rewardId, UnavailabilityReason.FORBIDDEN, cause)

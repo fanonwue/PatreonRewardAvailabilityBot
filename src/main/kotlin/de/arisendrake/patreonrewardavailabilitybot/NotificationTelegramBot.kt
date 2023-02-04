@@ -1,5 +1,6 @@
 package de.arisendrake.patreonrewardavailabilitybot
 
+import de.arisendrake.patreonrewardavailabilitybot.exceptions.*
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardEntry
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardObservationList
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.CampaignAttributes
@@ -121,14 +122,25 @@ class NotificationTelegramBot(
                     it.chatId = context.chatId().toString()
                 })
 
-                var messageContent = RewardObservationList.rewardMap.values.map {
+                var unavailableCampaigns = mutableMapOf<Long, UnavailabilityReason>()
+                var unavailableRewards = mutableMapOf<Long, UnavailabilityReason>()
+
+                var messageContent = RewardObservationList.rewardMap.values.map {entry ->
                     async {
-                        val reward = fetcher.fetchReward(it.id)
-                        val campaign = fetcher.fetchCampaign(reward.relationships.campaign?.data!!.id)
-                        // Create an artificial combined key for sorting
-                        (campaign.attributes.name to reward.attributes.amount) to formatForList(reward, campaign)
+                        try {
+                            val reward = fetcher.fetchReward(entry.id)
+                            val campaign = fetcher.fetchCampaign(reward.relationships.campaign?.data!!.id)
+                            // Create an artificial combined key for sorting
+                            (campaign.attributes.name to reward.attributes.amount) to formatForList(reward, campaign)
+                        } catch (e: RewardUnavailableException) {
+                            e.rewardId?.let { unavailableRewards[it] = e.unavailabilityReason }
+                            null
+                        } catch (e: CampaignUnavailableException) {
+                            e.campaignId?.let { unavailableCampaigns[it] = e.unavailabilityReason}
+                            null
+                        }
                     }
-                }.awaitAll().sortedWith(compareBy( { it.first.first }, {it.first.second} )  ).joinToString(
+                }.awaitAll().filterNotNull().sortedWith(compareBy( { it.first.first }, {it.first.second} )  ).joinToString(
                     separator = "\n-----------------------------------------\n"
                 ) { it.second }
 
@@ -143,10 +155,30 @@ class NotificationTelegramBot(
                     it.disableWebPagePreview()
                 })
 
+                if (unavailableRewards.isNotEmpty()) {
+                    context.bot().execute(SendMessage().also {
+                        it.chatId = context.chatId().toString()
+                        it.text = "The following rewards are not available anymore\n\n" + unavailableResourcesToString(unavailableRewards)
+                    })
+                }
+
+                if (unavailableCampaigns.isNotEmpty()) {
+                    context.bot().execute(SendMessage().also {
+                        it.chatId = context.chatId().toString()
+                        it.text = "The following campaigns are not available anymore\n\n" + unavailableResourcesToString(unavailableCampaigns)
+                    })
+                }
+
             } }
             .post {  }
             .build()
     }
+
+    fun unavailableResourcesToString(unavailableResources: Map<Long, UnavailabilityReason>) = unavailableResources.mapNotNull {
+        """
+            ${it.key} (${it.value.displayName})
+        """.trimIndent()
+    }.joinToString("\n")
 
     suspend fun sendAvailabilityNotification(
         reward: Data<RewardsAttributes>,
