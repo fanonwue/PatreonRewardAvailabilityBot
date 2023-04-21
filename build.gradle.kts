@@ -5,7 +5,7 @@ plugins {
     kotlin("plugin.serialization") version "1.8.10"
     java
     application
-    id("com.github.johnrengelman.shadow") version "7.1.2"
+    id("com.github.johnrengelman.shadow") version "8.1.0"
 }
 
 group = "de.arisendrake"
@@ -17,14 +17,14 @@ repositories {
 
 dependencies {
     implementation(kotlin("stdlib"))
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.0")
 
     implementation("io.ktor:ktor-client-core:2.2.3")
     implementation("io.ktor:ktor-client-cio:2.2.3")
     implementation("io.ktor:ktor-client-content-negotiation:2.2.3")
     implementation("io.ktor:ktor-serialization-kotlinx-json:2.2.3")
 
-    implementation("org.telegram:telegrambots:6.4.0")
+    implementation("org.telegram:telegrambots:6.5.0")
     implementation("org.telegram:telegrambots-abilities:6.5.0")
 
     implementation("org.apache.logging.log4j:log4j-slf4j18-impl:2.18.0")
