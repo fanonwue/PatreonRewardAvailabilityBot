@@ -18,7 +18,7 @@ object RewardObservationList {
     val rewards get() = rewardMap.values
     private const val currentDataVersion = 2
     private val file = Config.rewardsListFile
-    private val rewardMapInternal = mutableMapOf<Long, RewardEntry>().withDefault { RewardEntry(it, null) }
+    private val rewardMapInternal = mutableMapOf<Long, RewardEntry>()
     private val serializer = Config.jsonSerializer
     private val charset = Charsets.UTF_8
 
