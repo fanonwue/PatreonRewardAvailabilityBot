@@ -20,7 +20,7 @@ object RewardObservationList {
     private val file = Config.rewardsListFile
     private val rewardMapInternal = mutableMapOf<Long, RewardEntry>()
     private val serializer = Config.jsonSerializer
-    private val charset = Charsets.UTF_8
+    private val charset = Config.charset
 
     init {
         synchronized(rewardMapInternal) {

@@ -1,49 +1,57 @@
 package de.arisendrake.patreonrewardavailabilitybot
 
 import kotlinx.serialization.json.Json
-import java.io.FileInputStream
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.time.Duration
+import java.time.Instant
 import java.util.Properties
+import kotlin.io.path.bufferedReader
 
 object Config {
+    const val DEFAULT_CONFIG_PATH = "config/config.ini"
+    const val DEFAULT_DATA_PATH = "data/rewards.json"
+
+    val charset = Charsets.UTF_8
 
     val configStore by lazy {
-        val props = Properties()
-
-        val configPath = let {
-            var path = System.getenv("CONFIG_PATH")
-            if (path == null || path.isEmpty()) path = "config/config.ini"
-            Paths.get(path)
-        }
-
-        configPath?.let {
-            FileInputStream(it.toFile()).use {
+        Properties().also { props ->
+            Paths.get(
+                System.getenv("CONFIG_PATH").let {
+                    if (it.isNullOrBlank()) DEFAULT_CONFIG_PATH else it
+                }
+            ).bufferedReader(charset).use {
                 props.load(it)
             }
         }
-
-        props
     }
 
-    val removeMissingRewards get() = getBoolean("run.removeMissingRewards", false)
+    val removeMissingRewards: Boolean
+    by lazy { getValue("run.removeMissingRewards", false) }
 
-    val notifyOnMissingRewards get() = getBoolean("run.notifyOnMissingRewards", true)
+    val notifyOnMissingRewards: Boolean
+    by lazy { getValue("run.notifyOnMissingRewards", true) }
 
-    val notifyOnForbiddenRewards get() = getBoolean("run.notifyOnForbiddenRewards", true)
+    val notifyOnForbiddenRewards: Boolean
+    by lazy { getValue("run.notifyOnForbiddenRewards", true) }
 
-    val telegramCreatorId get() = getLong("telegram.creatorId", 0)
+    val telegramCreatorId: Long
+    by lazy { getValue("telegram.creatorId", 0L) }
 
-    val telegramApiKey get() = getString("telegram.api.key", "")
+    val telegramApiKey: String
+    by lazy { getValue("telegram.api.key", "") }
 
-    val interval: Duration get() = getDuration("run.interval", 300)
+    val interval: Duration
+    by lazy { getValue("run.interval", 300) }
 
-    val initialDelay: Duration get() = getDuration("run.initialDelay", 5)
+    val initialDelay: Duration
+    by lazy { getValue("run.initialDelay", 5) }
 
-    val baseDomain get() = getString("baseDomain", "https://www.patreon.com")
+    val baseDomain: String
+    by lazy { getValue("baseDomain", "https://www.patreon.com") }
 
-    val rewardsListFile get() = getPath("run.rewardsListFile", "data/rewards.json")
+    val rewardsListFile: Path
+    by lazy { getValue("run.rewardsListFile", DEFAULT_DATA_PATH) }
 
     val jsonSerializer get() = Json {
         ignoreUnknownKeys = true
@@ -51,25 +59,26 @@ object Config {
         encodeDefaults = true
     }
 
+    private inline fun <reified T, reified R> getValue(key: String, default: R) = let {
+        val value = configStore.getProperty(key, when (R::class) {
+            Duration::class -> (default as Duration).seconds.toString()
+            Instant::class -> (default as Instant).toEpochMilli().toString()
+            else -> default.toString()
+        })
 
-    private fun getString(key: String, default: String = "")
-        = configStore.getProperty(key, default).toString()
+        when (T::class) {
+            String::class -> value
+            Int::class -> value.toInt()
+            Long::class -> value.toLong()
+            Float::class -> value.toFloat()
+            Double::class -> value.toDouble()
+            Boolean::class -> value.toBoolean()
 
-    private fun getLong(key: String, default: Long = 0)
-        = configStore.getProperty(key, default.toString()).toLong()
+            Path::class -> Paths.get(value)
+            Duration::class -> Duration.ofSeconds(value.toLong())
+            Instant::class -> Instant.ofEpochMilli(value.toLong())
 
-    private fun getInt(key: String, default: Int = 0)
-        = configStore.getProperty(key, default.toString()).toInt()
-
-    private fun getBoolean(key: String, default: Boolean = false)
-        = configStore.getProperty(key, default.toString()).toBoolean()
-
-    private fun getDuration(key: String, default: Long = 0)
-        = Duration.ofSeconds(getLong(key, default))
-
-    private fun getDuration(key: String, default: Duration = Duration.ZERO)
-        = getDuration(key, default.seconds)
-
-    private fun getPath(key: String, default: String = "")
-            = Paths.get(configStore.getProperty(key, default))
+            else -> throw IllegalArgumentException("Type ${T::class} is not supported")
+        } as T
+    }
 }
