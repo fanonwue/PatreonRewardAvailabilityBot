@@ -13,22 +13,17 @@ import mu.KotlinLogging
 import org.telegram.telegrambots.meta.TelegramBotsApi
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession
 import java.time.Instant
-import java.util.concurrent.Executors
 
 object App {
 
     @JvmStatic
     private val logger = KotlinLogging.logger {  }
 
-    val updateJob : Job? = null
-    private var supervisorJob = SupervisorJob()
     private val fetcher = PatreonFetcher()
     private val botsApi = TelegramBotsApi(DefaultBotSession::class.java)
 
     private val coroutineScope by lazy {
-        val executor = Executors.newScheduledThreadPool(2)
-        val context = executor.asCoroutineDispatcher() + supervisorJob
-        CoroutineScope(context)
+        CoroutineScope(Dispatchers.Default)
     }
 
     private val notificationTelegramBot by lazy {
