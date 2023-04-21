@@ -17,7 +17,7 @@ repositories {
 
 dependencies {
     implementation(kotlin("stdlib"))
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.0")
 
     implementation("io.ktor:ktor-client-core:2.2.3")
     implementation("io.ktor:ktor-client-cio:2.2.3")
