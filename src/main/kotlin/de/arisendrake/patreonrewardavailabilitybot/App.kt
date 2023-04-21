@@ -49,7 +49,7 @@ object App {
         coroutineScope.launch {
             while (isActive) {
                 logger.info { "Checking reward availability" }
-                val availableRewards = RewardObservationList.rewardMap.values.map { entry ->
+                val availableRewards = RewardObservationList.rewards.map { entry ->
                     async { doAvailabilityCheck(entry) }
                 }.awaitAll().filterNotNull()
                 RewardObservationList.update(availableRewards)
