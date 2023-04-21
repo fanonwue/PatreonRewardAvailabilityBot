@@ -69,17 +69,15 @@ object RewardObservationList {
 
 
     private fun readFromFile() {
-        file.bufferedReader(charset).use { reader ->
-            val text = reader.readText()
-            rewardMapInternal.clear()
-            if (text.isNotBlank()) {
-                val rewardsDataVersion = serializer.decodeFromString<RewardsDataVersion>(text)
-                val rewardsData = when (rewardsDataVersion.dataVersion) {
-                    2 -> parseRewardsDataV2(text)
-                    else -> migrateDataV1toV2(text)
-                }
-                rewardMapInternal.putAll(rewardsData.data.associateBy { it.id })
+        val text = file.bufferedReader(charset).use { it.readText() }
+        rewardMapInternal.clear()
+        if (text.isNotBlank()) {
+            val rewardsDataVersion = serializer.decodeFromString<RewardsDataVersion>(text)
+            val rewardsData = when (rewardsDataVersion.dataVersion) {
+                2 -> parseRewardsDataV2(text)
+                else -> migrateDataV1toV2(text)
             }
+            rewardMapInternal.putAll(rewardsData.data.associateBy { it.id })
         }
         logger.info { "Read ${rewardMap.size} Reward IDs from disk" }
     }
