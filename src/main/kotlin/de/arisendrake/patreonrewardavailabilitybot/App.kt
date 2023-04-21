@@ -98,7 +98,7 @@ object App {
             }
             entry.isMissing = true
         } catch (t: Throwable) {
-            t.printStackTrace()
+            logger.error(t) { "An Error occured!" }
         }
         return null
     }
@@ -125,7 +125,7 @@ object App {
             } catch (e: CampaignNotFoundException) {
                 logger.warn { e.message ?: "Campaign for reward ${entry.id} not found" }
             } catch (t: Throwable) {
-                t.printStackTrace()
+                logger.error(t) { "An Error occured!" }
             }
         } ?: logger.warn { "No RewardEntry found for rewardId ${reward.id}" }
     }
