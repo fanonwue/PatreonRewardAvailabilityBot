@@ -1,9 +1,9 @@
 package de.arisendrake.patreonrewardavailabilitybot.model.serializers
 
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
-import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import java.time.Instant
@@ -23,3 +23,5 @@ object InstantSerializer : KSerializer<Instant> {
 
     override val descriptor = PrimitiveSerialDescriptor("DateTime", PrimitiveKind.STRING)
 }
+
+typealias InstantAsIsoString = @Serializable(with = InstantSerializer::class) Instant

@@ -1,6 +1,6 @@
 package de.arisendrake.patreonrewardavailabilitybot.model
 
-import de.arisendrake.patreonrewardavailabilitybot.model.serializers.InstantSerializer
+import de.arisendrake.patreonrewardavailabilitybot.model.serializers.InstantAsIsoString
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
@@ -11,10 +11,8 @@ import java.time.Instant
 @Serializable
 data class RewardEntry(
     val id: Long,
-    @Serializable(with = InstantSerializer::class)
-    var availableSince: Instant? = null,
-    @Serializable(with = InstantSerializer::class)
-    var lastNotified: Instant? = null,
+    var availableSince: InstantAsIsoString? = null,
+    var lastNotified: InstantAsIsoString? = null,
     var isMissing: Boolean = false
 ) {
     @Transient

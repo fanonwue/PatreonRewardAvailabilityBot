@@ -1,9 +1,7 @@
 package de.arisendrake.patreonrewardavailabilitybot.model.patreon
 
 import de.arisendrake.patreonrewardavailabilitybot.Config
-import de.arisendrake.patreonrewardavailabilitybot.model.serializers.CurrencySerializer
-import de.arisendrake.patreonrewardavailabilitybot.model.serializers.InstantSerializer
-import de.arisendrake.patreonrewardavailabilitybot.model.serializers.UriSerializer
+import de.arisendrake.patreonrewardavailabilitybot.model.serializers.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.net.URI
@@ -16,14 +14,10 @@ data class RewardsAttributes(
     @SerialName("amount_cents") val amountCents: Int,
     val title: String,
     val remaining: Int?,
-    @Serializable(with = UriSerializer::class)
-    val url: URI,
-    @Serializable(with = CurrencySerializer::class)
-    val currency: Currency,
-    @Serializable(with = InstantSerializer::class)
-    @SerialName("created_at") val createdAt: Instant,
-    @Serializable(with = InstantSerializer::class)
-    @SerialName("edited_at") val editedAt: Instant
+    val url: UriAsString,
+    val currency: CurrencyAsString,
+    @SerialName("created_at") val createdAt: InstantAsIsoString,
+    @SerialName("edited_at") val editedAt: InstantAsIsoString
 ) {
     val fullUrl get() = URI.create(Config.baseDomain + url)
     val formattedAmount get() = let {

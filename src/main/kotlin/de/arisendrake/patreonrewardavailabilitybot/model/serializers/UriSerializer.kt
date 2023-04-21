@@ -1,12 +1,12 @@
 package de.arisendrake.patreonrewardavailabilitybot.model.serializers
 
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import java.net.URI
-import java.time.Instant
 
 object UriSerializer : KSerializer<URI> {
 
@@ -20,3 +20,5 @@ object UriSerializer : KSerializer<URI> {
 
     override val descriptor = PrimitiveSerialDescriptor("URI", PrimitiveKind.STRING)
 }
+
+typealias UriAsString = @Serializable(with = UriSerializer::class) URI
