@@ -13,11 +13,11 @@ import kotlin.io.path.outputStream
 
 object RewardObservationList {
     val rewardMap get() = synchronized(rewardMapInternal) { rewardMapInternal.toMap() }
+    private const val currentDataVersion = 2
     private val file = Config.rewardsListFile
     private val rewardMapInternal = mutableMapOf<Long, RewardEntry>().withDefault { RewardEntry(it, null) }
     private val serializer = Config.jsonSerializer
     private val charset = Charsets.UTF_8
-    private val currentDataVersion = 2
 
     @JvmStatic
     private val logger: Logger = LoggerFactory.getLogger(RewardObservationList.javaClass)
