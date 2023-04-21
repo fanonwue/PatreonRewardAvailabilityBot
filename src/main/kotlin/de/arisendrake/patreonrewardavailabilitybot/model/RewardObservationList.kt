@@ -5,9 +5,9 @@ import de.arisendrake.patreonrewardavailabilitybot.removeAll
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import mu.KotlinLogging
+import kotlin.io.path.bufferedReader
 import kotlin.io.path.bufferedWriter
 import kotlin.io.path.exists
-import kotlin.io.path.inputStream
 
 object RewardObservationList {
 
@@ -69,10 +69,8 @@ object RewardObservationList {
 
 
     private fun readFromFile() {
-        file.inputStream().use { stream ->
-            val reader = stream.bufferedReader(charset)
+        file.bufferedReader(charset).use { reader ->
             val text = reader.readText()
-            reader.close()
             rewardMapInternal.clear()
             if (text.isNotBlank()) {
                 val rewardsDataVersion = serializer.decodeFromString<RewardsDataVersion>(text)
