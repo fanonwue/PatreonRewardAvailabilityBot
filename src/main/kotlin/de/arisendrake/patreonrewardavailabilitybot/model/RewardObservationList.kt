@@ -4,22 +4,22 @@ import de.arisendrake.patreonrewardavailabilitybot.Config
 import de.arisendrake.patreonrewardavailabilitybot.removeAll
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
+import mu.KotlinLogging
 import kotlin.io.path.bufferedWriter
 import kotlin.io.path.exists
 import kotlin.io.path.inputStream
 
 object RewardObservationList {
+
+    @JvmStatic
+    private val logger = KotlinLogging.logger {  }
+
     val rewardMap get() = synchronized(rewardMapInternal) { rewardMapInternal.toMap() }
     private const val currentDataVersion = 2
     private val file = Config.rewardsListFile
     private val rewardMapInternal = mutableMapOf<Long, RewardEntry>().withDefault { RewardEntry(it, null) }
     private val serializer = Config.jsonSerializer
     private val charset = Charsets.UTF_8
-
-    @JvmStatic
-    private val logger: Logger = LoggerFactory.getLogger(RewardObservationList.javaClass)
 
     init {
         synchronized(rewardMapInternal) {
@@ -33,7 +33,7 @@ object RewardObservationList {
         file.bufferedWriter(charset).use {
             it.write(serializer.encodeToString(rewardsData))
         }
-        logger.debug("Saved ${rewardsData.data.size} Reward IDs to disk")
+        logger.debug { "Saved ${rewardsData.data.size} Reward IDs to disk" }
     }
 
     fun add(rewardList: Iterable<RewardEntry>) = synchronized(rewardMapInternal) {
@@ -63,7 +63,7 @@ object RewardObservationList {
     fun remove(rewardList: Iterable<Long>) = synchronized(rewardMapInternal) {
         rewardMapInternal.removeAll(rewardList)
         saveToFile()
-        logger.info("Removed reward entries: $rewardList")
+        logger.info { "Removed reward entries: $rewardList" }
     }
 
 
@@ -82,11 +82,11 @@ object RewardObservationList {
                 rewardMapInternal.putAll(rewardsData.data.associateBy { it.id })
             }
         }
-        logger.info("Read ${rewardMap.size} Reward IDs from disk")
+        logger.info { "Read ${rewardMap.size} Reward IDs from disk" }
     }
 
     private fun migrateDataV1toV2(rewardString: String) = let {
-        logger.info("Found V1 data format, migrating to V2")
+        logger.info { "Found V1 data format, migrating to V2" }
         val dataV1 = parseRewardsDataV1(rewardString)
         RewardsDataV2(2, dataV1.data.map { RewardEntry(it) })
     }

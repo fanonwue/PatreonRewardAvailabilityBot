@@ -11,16 +11,14 @@ import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
-import io.ktor.serialization.*
 import io.ktor.serialization.kotlinx.json.*
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
+import mu.KotlinLogging
 
 class PatreonFetcher {
 
     companion object {
         @JvmStatic
-        val logger: Logger = LoggerFactory.getLogger(PatreonFetcher::class.java)
+        val logger = KotlinLogging.logger {}
     }
 
     private val BASE_URI = "${Config.baseDomain}/api"
@@ -32,6 +30,7 @@ class PatreonFetcher {
 
     @Throws(RewardNotFoundException::class, RuntimeException::class)
     suspend fun checkAvailability(rewardId: Long) = let {
+        logger.debug { "Checking availability for reward $rewardId" }
         val result = fetchReward(rewardId)
         result.attributes.remaining to result
     }
@@ -40,6 +39,7 @@ class PatreonFetcher {
 
     @Throws(RewardUnavailableException::class, RuntimeException::class)
     suspend fun fetchReward(rewardId: Long) = let {
+        logger.debug { "Fetching reward $rewardId" }
         val result = client.get("$BASE_URI/rewards/$rewardId")
 
         if (result.status == HttpStatusCode.NotFound) throw RewardNotFoundException("Reward $rewardId gave 404 Not Found", rewardId)
@@ -51,6 +51,7 @@ class PatreonFetcher {
 
     @Throws(CampaignUnavailableException::class, RuntimeException::class)
     suspend fun fetchCampaign(campaignId: Long) = let {
+        logger.debug { "Fetching campaign $campaignId" }
         val result = client.get("$BASE_URI/campaigns/$campaignId")
 
         if (result.status == HttpStatusCode.NotFound) throw CampaignNotFoundException("Campaign $campaignId gave 404 Not Found", campaignId)

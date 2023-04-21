@@ -27,7 +27,8 @@ dependencies {
     implementation("org.telegram", "telegrambots", "6.5.0")
     implementation("org.telegram", "telegrambots-abilities", "6.5.0")
 
-    implementation("org.apache.logging.log4j", "log4j-slf4j18-impl", "2.18.0")
+    implementation("io.github.microutils", "kotlin-logging-jvm", "3.0.5")
+    implementation("org.apache.logging.log4j", "log4j-slf4j2-impl", "2.20.0")
 
     testImplementation("org.junit.jupiter", "junit-jupiter-api", "5.9.2")
     testRuntimeOnly("org.junit.jupiter", "junit-jupiter-engine")
