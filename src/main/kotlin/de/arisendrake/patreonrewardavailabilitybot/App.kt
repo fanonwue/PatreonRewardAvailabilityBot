@@ -11,6 +11,7 @@ import de.arisendrake.patreonrewardavailabilitybot.model.serializers.InstantSeri
 import kotlinx.coroutines.*
 import mu.KotlinLogging
 import org.telegram.telegrambots.meta.TelegramBotsApi
+import org.telegram.telegrambots.meta.generics.BotSession
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession
 import java.time.Instant
 
@@ -21,6 +22,7 @@ object App {
 
     private val fetcher = PatreonFetcher()
     private val botsApi = TelegramBotsApi(DefaultBotSession::class.java)
+    private var bot: BotSession? = null
 
     private val coroutineScope by lazy {
         CoroutineScope(Dispatchers.Default)
@@ -35,12 +37,16 @@ object App {
         )
     }
 
-    fun setup() {
+    fun run() {
+        logger.info { "Registering Telegram Bot" }
+        bot = botsApi.registerBot(notificationTelegramBot)
+
         logger.info {"""
             Starting coroutine scheduler with an interval of ${Config.interval.toSeconds()}s and with an initial
             delay of ${Config.initialDelay.toSeconds()}s
         """.trimIndent().withoutNewlines()
         }
+
         coroutineScope.launch {
             while (isActive) {
                 logger.info { "Checking reward availability" }
@@ -93,11 +99,6 @@ object App {
             t.printStackTrace()
         }
         return null
-    }
-
-    fun start() {
-        botsApi.registerBot(notificationTelegramBot)
-        supervisorJob.start()
     }
 
     private suspend fun onRewardAvailability(reward: Data<RewardsAttributes>) {
