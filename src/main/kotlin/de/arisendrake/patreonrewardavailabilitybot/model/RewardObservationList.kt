@@ -4,12 +4,11 @@ import de.arisendrake.patreonrewardavailabilitybot.Config
 import de.arisendrake.patreonrewardavailabilitybot.removeAll
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import kotlin.io.path.bufferedWriter
 import kotlin.io.path.exists
 import kotlin.io.path.inputStream
-import kotlin.io.path.outputStream
 
 object RewardObservationList {
     val rewardMap get() = synchronized(rewardMapInternal) { rewardMapInternal.toMap() }
@@ -31,14 +30,10 @@ object RewardObservationList {
 
     private fun saveToFile() {
         val rewardsData = RewardsDataV2(currentDataVersion, rewardMapInternal.values.toList())
-        serializer.encodeToString(rewardsData).let {
-            file.outputStream().use { stream ->
-                stream.bufferedWriter(charset).use { writer ->
-                    writer.write(it)
-                }
-            }
+        file.bufferedWriter(charset).use {
+            it.write(serializer.encodeToString(rewardsData))
         }
-        logger.debug("Saved ${rewardMap.size} Reward IDs to disk")
+        logger.debug("Saved ${rewardsData.data.size} Reward IDs to disk")
     }
 
     fun add(rewardList: Iterable<RewardEntry>) = synchronized(rewardMapInternal) {
