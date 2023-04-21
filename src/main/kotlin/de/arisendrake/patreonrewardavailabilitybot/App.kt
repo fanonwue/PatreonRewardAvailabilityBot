@@ -9,6 +9,7 @@ import de.arisendrake.patreonrewardavailabilitybot.model.patreon.Data
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.RewardsAttributes
 import de.arisendrake.patreonrewardavailabilitybot.model.serializers.InstantSerializer
 import kotlinx.coroutines.*
+import kotlinx.coroutines.time.delay
 import mu.KotlinLogging
 import org.telegram.telegrambots.meta.TelegramBotsApi
 import org.telegram.telegrambots.meta.generics.BotSession
@@ -48,6 +49,7 @@ object App {
         }
 
         coroutineScope.launch {
+            delay(Config.initialDelay)
             while (isActive) {
                 logger.info { "Checking reward availability" }
                 val availableRewards = RewardObservationList.rewards.map { entry ->
@@ -55,7 +57,7 @@ object App {
                 }.awaitAll().filterNotNull()
                 RewardObservationList.update(availableRewards)
                 logger.info { "${availableRewards.size} available rewards found" }
-                delay(Config.interval.toMillis())
+                delay(Config.interval)
             }
         }
     }
