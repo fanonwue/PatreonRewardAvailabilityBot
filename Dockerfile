@@ -1,4 +1,4 @@
-FROM gradle:7.4-jdk-alpine
+FROM gradle:8.1-jdk-alpine
 
 ENV APP_HOME=/var/app/
 
