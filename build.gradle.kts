@@ -29,7 +29,9 @@ dependencies {
     implementation("org.jetbrains.exposed", "exposed-jdbc", "0.41.1")
     implementation("org.jetbrains.exposed", "exposed-java-time", "0.41.1")
 
-    implementation("org.xerial", "sqlite-jdbc", "3.41.2.1")
+    //implementation("org.xerial", "sqlite-jdbc", "3.41.2.1")
+    implementation("com.h2database", "h2", "2.1.214")
+
 
     implementation("dev.inmo", "tgbotapi", "7.1.0")
 

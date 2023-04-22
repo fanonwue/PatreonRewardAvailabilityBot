@@ -39,7 +39,7 @@ object App {
     }
 
     fun run() {
-        Database.connect("jdbc:sqlite:data/main.db", "org.sqlite.JDBC")
+        Database.connect("jdbc:h2:./data/h2.db", "org.h2.Driver")
         transaction {
             SchemaUtils.createMissingTablesAndColumns(Chats, RewardEntries)
         }
