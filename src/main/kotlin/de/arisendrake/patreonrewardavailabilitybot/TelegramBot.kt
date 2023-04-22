@@ -75,18 +75,12 @@ class TelegramBot(
     )
     
     suspend fun start() = bot.buildBehaviourWithLongPolling(timeoutSeconds = 60) {
-        val botCommands = listOf(
-            BotCommand("add",
-                "Adds a reward ID to the list of observed rewards"),
-            BotCommand("remove",
-                "Removes a reward ID from the list of observed rewards"),
-            BotCommand("list",
-                "Shows a list of all currently tracked rewards"),
-            BotCommand("reset_notifications",
-                "Resets notifications for all rewards, so you'll be notified again about rewards that are still available")
-        ).associateBy { it.command }
+        val botCommandList = mutableListOf<BotCommand>()
+        val addToCommandList: (BotCommand) -> Unit = { botCommandList.add(it) }
 
-        onCommand(botCommands["add"]!!, initialFilter = messageFilterCreatorOnly) {
+        onCommand(BotCommand("add",
+            "Adds a reward ID to the list of observed rewards"
+        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {
             
             val rewardIds = parseRewardIdList(it.content.text)
             if (rewardIds.isEmpty()) {
@@ -109,7 +103,9 @@ class TelegramBot(
             })
         }
         
-        onCommand(botCommands["remove"]!!, initialFilter = messageFilterCreatorOnly) {
+        onCommand(BotCommand("remove",
+            "Removes a reward ID from the list of observed rewards"
+        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {
 
             val rewardIds = parseRewardIdList(it.content.text)
             if (rewardIds.isEmpty()) {
@@ -122,17 +118,20 @@ class TelegramBot(
             
         }
         
-        onCommand(botCommands["reset_notifications"]!!, initialFilter = messageFilterCreatorOnly) {
+        onCommand(BotCommand("reset_notifications",
+            "Resets notifications for all rewards, so you'll be notified again about rewards that are still available"
+        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {
             val msg = reply(it, "Resetting last notification timestamps...")
             RewardObservationList.updateAll { it.lastNotified = null }
             editMessageText(msg, "Timestamps reset!")
         }
         
-        onCommand(botCommands["list"]!!,
-            initialFilter = messageFilterCreatorOnly) { onListCommand(this, it) }
+        onCommand(BotCommand("list",
+            "Shows a list of all currently tracked rewards"
+        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) { onListCommand(this, it) }
 
 
-        setMyCommands(botCommands.values.toList())
+        setMyCommands(botCommandList)
 
 //        onPhoto {
 //            val bytes = downloadFile(it.content)
