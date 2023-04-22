@@ -19,13 +19,12 @@ dependencies {
     implementation(kotlin("stdlib"))
     implementation("org.jetbrains.kotlinx", "kotlinx-serialization-json", "1.5.0")
 
-    implementation("io.ktor", "ktor-client-core", "2.2.3")
-    implementation("io.ktor", "ktor-client-cio", "2.2.3")
-    implementation("io.ktor", "ktor-client-content-negotiation", "2.2.3")
-    implementation("io.ktor", "ktor-serialization-kotlinx-json", "2.2.3")
+    implementation("io.ktor", "ktor-client-core", "2.3.0")
+    implementation("io.ktor", "ktor-client-cio", "2.3.0")
+    implementation("io.ktor", "ktor-client-content-negotiation", "2.3.0")
+    implementation("io.ktor", "ktor-serialization-kotlinx-json", "2.3.0")
 
-    implementation("org.telegram", "telegrambots", "6.5.0")
-    implementation("org.telegram", "telegrambots-abilities", "6.5.0")
+    implementation("dev.inmo", "tgbotapi", "7.1.0")
 
     implementation("io.github.microutils", "kotlin-logging-jvm", "3.0.5")
     implementation("org.apache.logging.log4j", "log4j-slf4j2-impl", "2.20.0")
