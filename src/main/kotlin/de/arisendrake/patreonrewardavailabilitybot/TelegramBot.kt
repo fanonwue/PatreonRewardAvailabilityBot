@@ -18,6 +18,7 @@ import dev.inmo.tgbotapi.extensions.behaviour_builder.BehaviourContext
 import dev.inmo.tgbotapi.extensions.behaviour_builder.buildBehaviourWithLongPolling
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.CommonMessageFilter
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommand
+import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommandWithArgs
 import dev.inmo.tgbotapi.types.BotCommand
 import dev.inmo.tgbotapi.types.message.MarkdownParseMode
 import dev.inmo.tgbotapi.types.message.MarkdownV2ParseMode
@@ -78,20 +79,19 @@ class TelegramBot(
         val botCommandList = mutableListOf<BotCommand>()
         val addToCommandList: (BotCommand) -> Unit = { botCommandList.add(it) }
 
-        onCommand(BotCommand("add",
+        onCommandWithArgs(BotCommand("add",
             "Adds a reward ID to the list of observed rewards"
-        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {
-            
-            val rewardIds = parseRewardIdList(it.content.text)
+        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {it, args ->
+            val rewardIds = parseRewardIdList(args)
             if (rewardIds.isEmpty()) {
                 reply(it, "One or multiple Rewards IDs expected as arguments")
-                return@onCommand
+                return@onCommandWithArgs
             }
             
             val uniqueNewIds = rewardIds.filterNot { RewardObservationList.rewardMap.containsKey(it) }
             if (uniqueNewIds.isEmpty()) {
                 reply(it, "All IDs have been added already. No new ID has been added.")
-                return@onCommand
+                return@onCommandWithArgs
             }
             
             RewardObservationList.add(uniqueNewIds)
@@ -103,14 +103,14 @@ class TelegramBot(
             })
         }
         
-        onCommand(BotCommand("remove",
+        onCommandWithArgs(BotCommand("remove",
             "Removes a reward ID from the list of observed rewards"
-        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {
+        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {it, args ->
 
-            val rewardIds = parseRewardIdList(it.content.text)
+            val rewardIds = parseRewardIdList(args)
             if (rewardIds.isEmpty()) {
                 reply(it, "One or multiple Rewards IDs expected as arguments")
-                return@onCommand
+                return@onCommandWithArgs
             }
 
             RewardObservationList.remove(rewardIds)
@@ -184,14 +184,11 @@ class TelegramBot(
         )
     }
     
-    private fun parseRewardIdList(text: String) : Set<Long> {
-        val arguments = text.substringAfter(' ', "").trim()
-        return when {
-            arguments.contains(',') -> arguments.split(',')
-            else -> arguments.split(' ')
-        }.map { it.trim().toLongOrNull() }.filterNotNull().toSet()
-    }
-    
+    private fun parseRewardIdList(args: Array<String>)  = args.map { it.split(',') }.flatten()
+        .filterNot { it.isBlank() }
+        .mapNotNull { it.trim().toLongOrNull() }
+        .toSet()
+
 
     private fun formatForList(reward: Data<RewardsAttributes>, campaign: Data<CampaignAttributes>) = let {
         val ca = campaign.attributes
