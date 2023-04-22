@@ -30,14 +30,14 @@ class NotificationTelegramBot(
     username: String,
     val fetcher: PatreonFetcher,
     val coroutineScope: CoroutineScope
-) : AbilityBot(apiKey, username) {
+) : AbilityBot(apiKey, username, bareboneToggle) {
 
     companion object {
         private val bareboneToggle = BareboneToggle()
     }
 
     override fun onRegister() {
-        super<AbilityBot>.onRegister()
+        super.onRegister()
         val setMyCommands = SetMyCommands.builder()
             .commands(abilities().values.map {
                 BotCommand.builder()
@@ -53,126 +53,137 @@ class NotificationTelegramBot(
 
     override fun creatorId() = Config.telegramCreatorId
 
-    fun addReward() : Ability {
-        return Ability.builder()
-            .name("add")
-            .info("Adds a reward ID to the list of observed rewards")
-            .locality(Locality.ALL)
-            .privacy(Privacy.CREATOR)
-            .action { coroutineScope.launch {
-                if (it.arguments().isEmpty()) {
-                    silent.send("Reward ID expected as first argument", it.chatId())
-                } else {
-                    val idList = getIdsFromArguments(it.arguments())
-                    val filteredIdList = idList.filterNot { RewardObservationList.rewardMap.containsKey(it) }
+    fun addReward() = Ability.builder()
+        .name("add")
+        .info("Adds a reward ID to the list of observed rewards")
+        .locality(Locality.ALL)
+        .privacy(Privacy.CREATOR)
+        .action { coroutineScope.launch {
+            if (it.arguments().isEmpty()) {
+                silent.send("Reward ID expected as first argument", it.chatId())
+            } else {
+                val idList = getIdsFromArguments(it.arguments())
+                val filteredIdList = idList.filterNot { RewardObservationList.rewardMap.containsKey(it) }
 
-                    var message = ""
+                var message = ""
 
-                    if (filteredIdList.isNotEmpty()) {
-                        RewardObservationList.add(filteredIdList)
-                        message += "Reward IDs [${filteredIdList.joinToString(", ")}] successfully added"
-                        if (idList.size > filteredIdList.size) {
-                            message += "\nSome IDs have been added already and were filtered out"
-                        }
-                    } else {
-                        message += "All IDs have been added already. No new ID has been added."
+                if (filteredIdList.isNotEmpty()) {
+                    RewardObservationList.add(filteredIdList)
+                    message += "Reward IDs [${filteredIdList.joinToString(", ")}] successfully added"
+                    if (idList.size > filteredIdList.size) {
+                        message += "\nSome IDs have been added already and were filtered out"
                     }
-                    silent.send(message, it.chatId())
-
-                }
-            } }
-            .post {  }
-            .build()
-    }
-
-    fun removeReward() : Ability {
-        return Ability.builder()
-            .name("remove")
-            .info("Removes a reward ID from the list of observed rewards")
-            .locality(Locality.ALL)
-            .privacy(Privacy.CREATOR)
-            .action { coroutineScope.launch {
-                if (it.arguments().isEmpty()) {
-                    silent.send("Reward ID expected as first argument", it.chatId())
                 } else {
-                    val idList = getIdsFromArguments(it.arguments())
-                    RewardObservationList.remove(idList)
-                    silent.send("Reward IDs [${idList.joinToString(", ")}] successfully removed", it.chatId())
+                    message += "All IDs have been added already. No new ID has been added."
                 }
-            } }
-            .post {  }
-            .build()
-    }
+                silent.send(message, it.chatId())
 
-    fun listTrackedRewards() : Ability {
-        return Ability.builder()
-            .name("list")
-            .info("Shows a list of all currently tracked rewards")
-            .locality(Locality.ALL)
-            .privacy(Privacy.CREATOR)
-            .action { context ->  coroutineScope.launch {
+            }
+        } }
+        .post {  }
+        .build()
 
-                val message = context.bot().execute(SendMessage().also {
-                    it.chatId = context.chatId().toString()
-                    it.text = "Fetching data..."
-                })
 
-                context.bot().execute(SendChatAction().also {
-                    it.setAction(ActionType.TYPING)
-                    it.chatId = context.chatId().toString()
-                })
+    fun removeReward() = Ability.builder()
+        .name("remove")
+        .info("Removes a reward ID from the list of observed rewards")
+        .locality(Locality.ALL)
+        .privacy(Privacy.CREATOR)
+        .action { coroutineScope.launch {
+            if (it.arguments().isEmpty()) {
+                silent.send("Reward ID expected as first argument", it.chatId())
+            } else {
+                val idList = getIdsFromArguments(it.arguments())
+                RewardObservationList.remove(idList)
+                silent.send("Reward IDs [${idList.joinToString(", ")}] successfully removed", it.chatId())
+            }
+        } }
+        .post {  }
+        .build()
 
-                var unavailableCampaigns = mutableMapOf<Long, UnavailabilityReason>()
-                var unavailableRewards = mutableMapOf<Long, UnavailabilityReason>()
+    fun resetLastNotified() = Ability.builder()
+        .name("reset_notifications")
+        .info("Resets notifications for all rewards, so you'll be notified again about rewards that are still available")
+        .locality(Locality.ALL)
+        .privacy(Privacy.CREATOR)
+        .action { context -> coroutineScope.launch {
+            silent.send("Resetting last notification timestamps...", context.chatId())
 
-                var messageContent = RewardObservationList.rewardMap.values.map {entry ->
-                    async {
-                        try {
-                            val reward = fetcher.fetchReward(entry.id)
-                            val campaign = fetcher.fetchCampaign(reward.relationships.campaign?.data!!.id)
-                            // Create an artificial combined key for sorting
-                            (campaign.attributes.name to reward.attributes.amount) to formatForList(reward, campaign)
-                        } catch (e: RewardUnavailableException) {
-                            e.rewardId?.let { unavailableRewards[it] = e.unavailabilityReason }
-                            null
-                        } catch (e: CampaignUnavailableException) {
-                            e.campaignId?.let { unavailableCampaigns[it] = e.unavailabilityReason}
-                            null
-                        }
+            RewardObservationList.updateAll { it.lastNotified = null }
+
+            silent.send("Timestamps reset!", context.chatId())
+        } }
+        .post {  }
+        .build()
+
+    fun listTrackedRewards() = Ability.builder()
+        .name("list")
+        .info("Shows a list of all currently tracked rewards")
+        .locality(Locality.ALL)
+        .privacy(Privacy.CREATOR)
+        .action { context -> coroutineScope.launch {
+
+            val message = context.bot().execute(SendMessage().also {
+                it.chatId = context.chatId().toString()
+                it.text = "Fetching data..."
+            })
+
+            context.bot().execute(SendChatAction().also {
+                it.setAction(ActionType.TYPING)
+                it.chatId = context.chatId().toString()
+            })
+
+            val unavailableCampaigns = mutableMapOf<Long, UnavailabilityReason>()
+            val unavailableRewards = mutableMapOf<Long, UnavailabilityReason>()
+
+            var messageContent = RewardObservationList.rewardMap.values.map {entry ->
+                async {
+                    try {
+                        val reward = fetcher.fetchReward(entry.id)
+                        val campaign = fetcher.fetchCampaign(reward.relationships.campaign?.data!!.id)
+                        // Create an artificial combined key for sorting
+                        (campaign.attributes.name to reward.attributes.amount) to formatForList(reward, campaign)
+                    } catch (e: RewardUnavailableException) {
+                        e.rewardId?.let { unavailableRewards[it] = e.unavailabilityReason }
+                        null
+                    } catch (e: CampaignUnavailableException) {
+                        e.campaignId?.let { unavailableCampaigns[it] = e.unavailabilityReason}
+                        null
                     }
-                }.awaitAll().filterNotNull().sortedWith(compareBy( { it.first.first }, {it.first.second} )  ).joinToString(
-                    separator = "\n-----------------------------------------\n"
-                ) { it.second }
-
-
-                if (messageContent.isEmpty()) messageContent = "No observed rewards found!"
-
-                context.bot().execute(EditMessageText().also {
-                    it.chatId = context.chatId().toString()
-                    it.messageId = message.messageId
-                    it.text = messageContent
-                    it.enableMarkdown(true)
-                    it.disableWebPagePreview()
-                })
-
-                if (unavailableRewards.isNotEmpty()) {
-                    context.bot().execute(SendMessage().also {
-                        it.chatId = context.chatId().toString()
-                        it.text = "The following rewards are not available anymore\n\n" + unavailableResourcesToString(unavailableRewards)
-                    })
                 }
+            }.awaitAll().filterNotNull().sortedWith(compareBy( { it.first.first }, {it.first.second} )  ).joinToString(
+                separator = "\n-----------------------------------------\n"
+            ) { it.second }
 
-                if (unavailableCampaigns.isNotEmpty()) {
-                    context.bot().execute(SendMessage().also {
-                        it.chatId = context.chatId().toString()
-                        it.text = "The following campaigns are not available anymore\n\n" + unavailableResourcesToString(unavailableCampaigns)
-                    })
-                }
 
-            } }
-            .post {  }
-            .build()
-    }
+            if (messageContent.isEmpty()) messageContent = "No observed rewards found!"
+
+            context.bot().execute(EditMessageText().also {
+                it.chatId = context.chatId().toString()
+                it.messageId = message.messageId
+                it.text = messageContent
+                it.enableMarkdown(true)
+                it.disableWebPagePreview()
+            })
+
+            if (unavailableRewards.isNotEmpty()) {
+                silent.send(
+                    "The following rewards are not available anymore\n\n" + unavailableResourcesToString(unavailableRewards),
+                    context.chatId()
+                )
+            }
+
+            if (unavailableCampaigns.isNotEmpty()) {
+                silent.send(
+                    "The following campaigns are not available anymore\n\n" + unavailableResourcesToString(unavailableCampaigns),
+                    context.chatId()
+                )
+            }
+
+        } }
+        .post {  }
+        .build()
+
 
     fun unavailableResourcesToString(unavailableResources: Map<Long, UnavailabilityReason>) = unavailableResources.mapNotNull {
         """

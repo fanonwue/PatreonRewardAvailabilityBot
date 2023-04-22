@@ -54,6 +54,11 @@ object RewardObservationList {
 
     fun update(rewardEntry: RewardEntry) = add(rewardEntry)
 
+    /**
+     * Update all existing entries after applying the suppplied block
+     */
+    fun updateAll(block: (RewardEntry) -> Unit) = update(rewards.onEach(block))
+
     fun remove(rewardList: Iterable<RewardEntry>) = remove(rewardList.map { it.id })
 
     fun remove(rewardEntry: RewardEntry) = remove(listOf(rewardEntry))
