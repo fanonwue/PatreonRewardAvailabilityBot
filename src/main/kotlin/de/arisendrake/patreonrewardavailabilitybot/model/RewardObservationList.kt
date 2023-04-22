@@ -38,7 +38,12 @@ object RewardObservationList {
     }
 
     fun add(rewardList: Iterable<RewardEntry>) = synchronized(rewardMapInternal) {
+        val existingRewardEntries = rewardMapInternal.keys.toSet()
         rewardMapInternal.putAll(rewardList.associateBy { it.id })
+
+        val newEntries = rewardMapInternal.keys - existingRewardEntries
+        if (newEntries.isNotEmpty()) logger.info { "Added new reward entries: $newEntries" }
+
         saveToFile()
     }
 
