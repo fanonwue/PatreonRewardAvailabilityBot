@@ -21,7 +21,6 @@ import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onComman
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommandWithArgs
 import dev.inmo.tgbotapi.types.BotCommand
 import dev.inmo.tgbotapi.types.message.MarkdownParseMode
-import dev.inmo.tgbotapi.types.message.MarkdownV2ParseMode
 import dev.inmo.tgbotapi.types.message.abstracts.CommonMessage
 import dev.inmo.tgbotapi.types.message.content.TextContent
 import dev.inmo.tgbotapi.types.toChatId
@@ -61,7 +60,7 @@ class TelegramBot(
                 
                 ([Reward ${reward.id}](${ra.fullUrl}))
             """.trimIndent()
-        bot.sendTextMessage(creatorId, text, MarkdownV2ParseMode)
+        bot.sendTextMessage(creatorId, text, MarkdownParseMode)
     }
 
     suspend fun sendMissingRewardNotification(entry: RewardEntry) = bot.sendTextMessage(
