@@ -1,22 +1,19 @@
 package de.arisendrake.patreonrewardavailabilitybot.model
 
-import de.arisendrake.patreonrewardavailabilitybot.model.serializers.InstantAsIsoString
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
+import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries
+import org.jetbrains.exposed.dao.IntEntity
+import org.jetbrains.exposed.dao.IntEntityClass
+import org.jetbrains.exposed.dao.LongEntity
+import org.jetbrains.exposed.dao.LongEntityClass
+import org.jetbrains.exposed.dao.id.EntityID
 
-import java.time.Instant
+class RewardEntry(id: EntityID<Long>) : LongEntity(id) {
+    companion object : LongEntityClass<RewardEntry>(RewardEntries)
 
-@Serializable
-data class RewardEntry(
-    val id: Long,
-    var availableSince: InstantAsIsoString? = null,
-    var lastNotified: InstantAsIsoString? = null,
-    var isMissing: Boolean = false
-) {
-    @Transient
-    private val mutex = Mutex()
+    var chat by Chat referencedOn RewardEntries.chat
+    var rewardId by RewardEntries.rewardId
+    var availableSince by RewardEntries.availableSince
+    var lastNotified by RewardEntries.lastNotified
+    var isMissing by RewardEntries.isMissing
 
-    suspend fun <T> withLock(owner: Any? = null, block: () -> T) = mutex.withLock(owner, block)
 }

@@ -1,11 +1,13 @@
 package de.arisendrake.patreonrewardavailabilitybot
 
+import kotlinx.coroutines.*
 import kotlinx.serialization.json.Json
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.time.Duration
 import java.time.Instant
 import java.util.Properties
+import kotlin.coroutines.CoroutineContext
 import kotlin.io.path.bufferedReader
 
 object Config {
@@ -25,6 +27,10 @@ object Config {
             }
         }
     }
+
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val dbContext: CoroutineContext = Dispatchers.IO.limitedParallelism(1)
 
     val removeMissingRewards: Boolean
     by lazy { getValue("run.removeMissingRewards", false) }
