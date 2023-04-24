@@ -65,9 +65,10 @@ class TelegramBot(
         reward: Data<RewardsAttributes>,
         campaign: Data<CampaignAttributes>
     ) {
+        bot.sendActionTyping(chatId.toChatId())
         val ca = campaign.attributes
         val ra = reward.attributes
-        val text = 
+        val text =
             """
                 New Reward available for [${ca.name}](${ca.url})!
                 
@@ -99,6 +100,7 @@ class TelegramBot(
         onCommandWithArgs(BotCommand("add",
             "Adds a reward ID to the list of observed rewards"
         ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {message, args ->
+            sendActionTyping(message.chat.id)
             val rewardIds = parseRewardIdList(args)
             if (rewardIds.isEmpty()) {
                 reply(message, "One or multiple Rewards IDs expected as arguments")
@@ -137,13 +139,14 @@ class TelegramBot(
         onCommandWithArgs(BotCommand("add_campaign",
             "Retrieve all available rewards for specified reward campaign and allow the User to select a reward"
         ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) { message, args ->
+            sendActionTyping(message.chat.id)
             onCampaignAddCommand(message, args)
         }
         
         onCommandWithArgs(BotCommand("remove",
             "Removes a reward ID from the list of observed rewards"
         ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {message, args ->
-
+            sendActionTyping(message.chat.id)
             val rewardIds = parseRewardIdList(args)
             if (rewardIds.isEmpty()) {
                 reply(message, "One or multiple Rewards IDs expected as arguments")
@@ -162,10 +165,11 @@ class TelegramBot(
         
         onCommand(BotCommand("reset_notifications",
             "Resets notifications for all rewards, so you'll be notified again about rewards that are still available"
-        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) { context ->
-            val msg = reply(context, "Resetting last notification timestamps...")
+        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) { message ->
+            sendActionTyping(message.chat.id)
+            val msg = reply(message, "Resetting last notification timestamps...")
             newSuspendedTransaction(Config.dbContext) {
-                RewardEntries.update({chat eq context.chat.id.chatId}, null) {
+                RewardEntries.update({chat eq message.chat.id.chatId}, null) {
                     it[lastNotified] = null
                 }
             }
@@ -174,7 +178,10 @@ class TelegramBot(
         
         onCommand(BotCommand("list",
             "Shows a list of all currently tracked rewards"
-        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) { onListCommand(it) }
+        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) { message ->
+            sendActionTyping(message.chat.id)
+            onListCommand(message)
+        }
 
         onCommand(BotCommand("start",
             "Start interaction with bot"
@@ -205,7 +212,6 @@ class TelegramBot(
     }.join()
 
     private suspend fun BehaviourContext.onListCommand(message: CommonMessage<TextContent>) = coroutineScope {
-        sendActionTyping(message.chat.id)
         val responseMessage = reply(message, "Fetching data...")
 
         val unavailableCampaigns = mutableMapOf<Long, UnavailabilityReason>()
