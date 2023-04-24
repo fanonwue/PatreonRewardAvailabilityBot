@@ -67,9 +67,9 @@ object App {
         }
     }
 
-    private suspend fun Transaction.doAvailabilityCheck(entry: RewardEntry) : RewardEntry? = suspendedTransaction {
+    private suspend fun Transaction.doAvailabilityCheck(entry: RewardEntry) = suspendedTransaction {
         logger.debug { "Checking reward availability for reward $entry" }
-        try {
+        runCatching {
             val result = fetcher.checkAvailability(entry.rewardId)
             // Reward was found, so it's not missing
             entry.isMissing = false
@@ -81,29 +81,35 @@ object App {
                 } else {
                     entry.lastNotified = null
                     entry.availableSince = null
+                    null
                 }
             }
-        } catch (e: RewardNotFoundException) {
-            logger.warn { e.message ?: "Reward ${entry.id} not found" }
-            if (Config.removeMissingRewards) {
-                logger.info { "Removing missing reward ${entry.id} from the rewards list" }
-                entry.delete()
-            } else if (Config.notifyOnMissingRewards && !entry.isMissing) {
-                logger.info { "Notifying user of missing reward ${entry.id}" }
-                notificationTelegramBot.sendMissingRewardNotification(entry)
+        }.getOrElse {
+            when (it) {
+                is RewardNotFoundException -> {
+                    logger.warn { it.message ?: "Reward ${entry.id} not found" }
+                    if (Config.removeMissingRewards) {
+                        logger.info { "Removing missing reward ${entry.id} from the rewards list" }
+                        entry.delete()
+                    } else if (Config.notifyOnMissingRewards && !entry.isMissing) {
+                        logger.info { "Notifying user of missing reward ${entry.id}" }
+                        notificationTelegramBot.sendMissingRewardNotification(entry)
+                    }
+                    entry.isMissing = true
+                }
+                is RewardForbiddenException -> {
+                    logger.warn { it.message ?: "Access to reward ${entry.id} is forbidden" }
+                    if (Config.notifyOnForbiddenRewards && !entry.isMissing) {
+                        logger.info { "Notifying user of reward ${entry.id} with forbidden access" }
+                        notificationTelegramBot.sendForbiddenRewardNotification(entry)
+                    }
+                    entry.isMissing = true
+                }
+                else -> logger.error(it) { "An Error occured!" }
             }
-            entry.isMissing = true
-        } catch (e: RewardForbiddenException) {
-            logger.warn { e.message ?: "Access to reward ${entry.id} is forbidden" }
-            if (Config.notifyOnForbiddenRewards && !entry.isMissing) {
-                logger.info { "Notifying user of reward ${entry.id} with forbidden access" }
-                notificationTelegramBot.sendForbiddenRewardNotification(entry)
-            }
-            entry.isMissing = true
-        } catch (t: Throwable) {
-            logger.error(t) { "An Error occured!" }
+
+            null
         }
-        null
     }
 
     private suspend fun Transaction.onRewardAvailability(reward: Data<RewardsAttributes>) = suspendedTransaction {
