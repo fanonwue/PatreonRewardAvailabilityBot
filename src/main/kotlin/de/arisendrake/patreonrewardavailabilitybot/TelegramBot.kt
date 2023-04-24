@@ -28,6 +28,7 @@ import dev.inmo.tgbotapi.types.message.MarkdownParseMode
 import dev.inmo.tgbotapi.types.message.abstracts.CommonMessage
 import dev.inmo.tgbotapi.types.message.content.TextContent
 import dev.inmo.tgbotapi.types.toChatId
+import io.ktor.client.*
 import kotlinx.coroutines.*
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -45,6 +46,7 @@ class TelegramBot(
 ) {
 
     companion object {
+        private const val lineSeparator = "\n-----------------------------------------\n"
         @JvmStatic
         private val logger = KotlinLogging.logger {  }
     }
@@ -94,75 +96,67 @@ class TelegramBot(
         val botCommandList = mutableListOf<BotCommand>()
         val addToCommandList: (BotCommand) -> Unit = { botCommandList.add(it) }
 
-        onCommand(BotCommand("start",
-            "Start interaction with bot"
-        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {
-
-            val newlyCreated = newSuspendedTransaction(Config.dbContext) {
-                val chatId = it.chat.id.chatId
-                Chat.findById(chatId)?.let { false } ?: Chat.new(chatId) {  }.let { true }
-            }
-
-            if (newlyCreated) reply(it,
-                "Welcome to the Patreon Rewards Availability Bot, ${it.fromUserMessageOrNull()?.user?.username?.username}"
-            )
-        }
-
         onCommandWithArgs(BotCommand("add",
             "Adds a reward ID to the list of observed rewards"
-        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {context, args ->
+        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {message, args ->
             val rewardIds = parseRewardIdList(args)
             if (rewardIds.isEmpty()) {
-                reply(context, "One or multiple Rewards IDs expected as arguments")
+                reply(message, "One or multiple Rewards IDs expected as arguments")
                 return@onCommandWithArgs
             }
             
             val uniqueNewIds = newSuspendedTransaction(Config.dbContext) {
                 val currentRewardIds = RewardEntries
                     .slice(rewardId)
-                    .select { chat eq context.chat.id.chatId }.map {
+                    .select { chat eq message.chat.id.chatId }.map {
                         it[rewardId]
                     }
 
                 rewardIds.filterNot { currentRewardIds.contains(it) }
             }
             if (uniqueNewIds.isEmpty()) {
-                reply(context, "All IDs have been added already. No new ID has been added.")
+                reply(message, "All IDs have been added already. No new ID has been added.")
                 return@onCommandWithArgs
             }
 
             newSuspendedTransaction(Config.dbContext) { uniqueNewIds.forEach {it ->
                 RewardEntry.new {
-                    chat = Chat[context.chat.id.chatId]
+                    chat = Chat[message.chat.id.chatId]
                     rewardId = it
                 }
             } }
 
-            reply(context, "Reward IDs [${uniqueNewIds.joinToString(", ")}] successfully added.".let { it ->
+            reply(message, "Reward IDs [${uniqueNewIds.joinToString(", ")}] successfully added.".let { it ->
                 if (rewardIds.size > uniqueNewIds.size)
                     "$it\nSome IDs have been added already and were filtered out."
                 else
                     it
             })
         }
+
+        onCommandWithArgs(BotCommand("add_campaign",
+            "Retrieve all available rewards for specified reward campaign and allow the User to select a reward"
+        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) { message, args ->
+            onCampaignAddCommand(message, args)
+        }
         
         onCommandWithArgs(BotCommand("remove",
             "Removes a reward ID from the list of observed rewards"
-        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {context, args ->
+        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {message, args ->
 
             val rewardIds = parseRewardIdList(args)
             if (rewardIds.isEmpty()) {
-                reply(context, "One or multiple Rewards IDs expected as arguments")
+                reply(message, "One or multiple Rewards IDs expected as arguments")
                 return@onCommandWithArgs
             }
 
             newSuspendedTransaction(Config.dbContext) {
                 RewardEntries.deleteWhere {
-                    (chat eq context.chat.id.chatId) and (rewardId inList rewardIds)
+                    (chat eq message.chat.id.chatId) and (rewardId inList rewardIds)
                 }
             }
 
-            reply(context, "Reward IDs [${rewardIds.joinToString(", ")}] successfully removed.")
+            reply(message, "Reward IDs [${rewardIds.joinToString(", ")}] successfully removed.")
             
         }
         
@@ -180,8 +174,21 @@ class TelegramBot(
         
         onCommand(BotCommand("list",
             "Shows a list of all currently tracked rewards"
-        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) { onListCommand(this, it) }
+        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) { onListCommand(it) }
 
+        onCommand(BotCommand("start",
+            "Start interaction with bot"
+        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {
+
+            val newlyCreated = newSuspendedTransaction(Config.dbContext) {
+                val chatId = it.chat.id.chatId
+                Chat.findById(chatId)?.let { false } ?: Chat.new(chatId) {  }.let { true }
+            }
+
+            if (newlyCreated) reply(it,
+                "Welcome to the Patreon Rewards Availability Bot, ${it.fromUserMessageOrNull()?.user?.username?.username}"
+            )
+        }
 
         setMyCommands(botCommandList)
 
@@ -197,9 +204,9 @@ class TelegramBot(
 
     }.join()
 
-    private suspend fun onListCommand(context: BehaviourContext, message: CommonMessage<TextContent>) = coroutineScope {
-        context.sendActionTyping(message.chat.id)
-        val responseMessage = context.reply(message, "Fetching data...")
+    private suspend fun BehaviourContext.onListCommand(message: CommonMessage<TextContent>) = coroutineScope {
+        sendActionTyping(message.chat.id)
+        val responseMessage = reply(message, "Fetching data...")
 
         val unavailableCampaigns = mutableMapOf<Long, UnavailabilityReason>()
         val unavailableRewards = mutableMapOf<Long, UnavailabilityReason>()
@@ -220,22 +227,64 @@ class TelegramBot(
                 }
             }
         }.awaitAll().filterNotNull().sortedWith(compareBy( { it.first.first }, {it.first.second} )  ).joinToString(
-            separator = "\n-----------------------------------------\n"
+            lineSeparator
         ) { it.second } }
 
         if (messageContent.isBlank()) messageContent = "No observed rewards found!"
 
-        context.editMessageText(responseMessage, messageContent, MarkdownParseMode, true)
+        editMessageText(responseMessage, messageContent, MarkdownParseMode, true)
 
-        if (unavailableRewards.isNotEmpty()) context.sendTextMessage(
+        if (unavailableRewards.isNotEmpty()) sendTextMessage(
             message.chat.id,
             "The following rewards are not available anymore\n\n" + unavailableResourcesToString(unavailableRewards)
         )
 
-        if (unavailableCampaigns.isNotEmpty()) context.sendTextMessage(
+        if (unavailableCampaigns.isNotEmpty()) sendTextMessage(
             message.chat.id,
             "The following campaigns are not available anymore\n\n" + unavailableResourcesToString(unavailableCampaigns)
         )
+    }
+
+    private suspend fun BehaviourContext.onCampaignAddCommand(message: CommonMessage<TextContent>, args: Array<String>) = coroutineScope {
+        if (args.size != 1) {
+            reply(message, "Exactly one argument (the campaign's ID) is expected")
+            return@coroutineScope
+        }
+
+        val campaignId = args.first().toLongOrNull()
+        if (campaignId == null) {
+            reply(message, "The campaign ID must be a full integer")
+            return@coroutineScope
+        }
+
+        val campaign = runCatching {
+            fetcher.fetchCampaign(campaignId)
+        }.getOrElse {
+            reply(message, "The specified campaign $campaignId is not available. Please check that this campaign is still accessible.")
+            null
+        } ?: return@coroutineScope
+
+        val rewardIds = campaign.relationships.rewards?.data
+        if (rewardIds.isNullOrEmpty()) {
+            reply(message, "No rewards found for campaign $campaignId")
+            return@coroutineScope
+        }
+
+        val rewardData = rewardIds.map {
+            async { runCatching { fetcher.fetchReward(it.id) }.getOrNull() }
+        }.awaitAll().filterNotNull()
+
+        val stringifiedRewardData = rewardData.map {
+            val attributes = it.attributes
+            """
+                *${attributes.title}* for ${attributes.formattedAmount} ${attributes.currency.currencyCode}
+                ID: *${it.id}*
+            """.trimIndent()
+        }
+
+        reply(message, "The following rewards have been found:")
+        sendTextMessage(message.chat, stringifiedRewardData.joinToString(lineSeparator), MarkdownParseMode)
+        sendTextMessage(message.chat, "You can add a reward by using the /add command.")
     }
     
     private fun parseRewardIdList(args: Array<String>)  = args.map { it.split(',') }.flatten()
@@ -249,7 +298,7 @@ class TelegramBot(
         val ra = reward.attributes
         """
             [${ca.name}](${ca.url}) - *${ra.title}* for ${ra.formattedAmount} ${ra.currency.currencyCode}
-            (ID *${reward.id}*)
+            (ID: *${reward.id}*)
         """.trimIndent()
     }
 

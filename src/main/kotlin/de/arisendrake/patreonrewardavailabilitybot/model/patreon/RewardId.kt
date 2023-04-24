@@ -4,6 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class RewardsRelationship(
-    val data: Collection<RewardId>
+@SerialName("reward")
+data class RewardId(
+    val id: Long
 )
