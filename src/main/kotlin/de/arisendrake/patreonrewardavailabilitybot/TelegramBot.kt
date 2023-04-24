@@ -95,7 +95,8 @@ class TelegramBot(
         ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {
 
             val newlyCreated = newSuspendedTransaction(Config.dbContext) {
-                Chat.findById(it.chat.id.chatId)?.let { false } ?: Chat.new {  }.let { true }
+                val chatId = it.chat.id.chatId
+                Chat.findById(chatId)?.let { false } ?: Chat.new(chatId) {  }.let { true }
             }
 
             if (newlyCreated) reply(it,
