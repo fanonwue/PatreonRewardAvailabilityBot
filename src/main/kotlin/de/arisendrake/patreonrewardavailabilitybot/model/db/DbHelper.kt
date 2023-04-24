@@ -1,5 +1,6 @@
 package de.arisendrake.patreonrewardavailabilitybot.model.db
 
+import de.arisendrake.patreonrewardavailabilitybot.Config
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.DatabaseConfig
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -13,7 +14,7 @@ object DbHelper {
             defaultIsolationLevel = Connection.TRANSACTION_READ_UNCOMMITTED
         }
         Database.connect(
-            "jdbc:sqlite:data/main.db",
+            "jdbc:sqlite:${Config.databasePath}",
             "org.sqlite.JDBC",
             databaseConfig = dbConfig
         ).also {

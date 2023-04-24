@@ -40,7 +40,8 @@ import org.jetbrains.exposed.sql.update
 
 class TelegramBot(
     apiKey: String,
-    private val fetcher: PatreonFetcher
+    private val fetcher: PatreonFetcher,
+    httpClient: HttpClient
 ) {
 
     companion object {
@@ -48,7 +49,10 @@ class TelegramBot(
         private val logger = KotlinLogging.logger {  }
     }
 
-    private val bot = telegramBot(apiKey)
+    private val bot = telegramBot(
+        apiKey,
+        client = httpClient
+    )
     private val creatorId = Config.telegramCreatorId.toChatId()
     private val messageFilterCreatorOnly = CommonMessageFilter<Any> {
         it.chat.id == creatorId
@@ -72,7 +76,7 @@ class TelegramBot(
                 
                 ([Reward ${reward.id}](${ra.fullUrl}))
             """.trimIndent()
-        bot.sendTextMessage(creatorId, text, MarkdownParseMode)
+        bot.sendTextMessage(chatId.toChatId(), text, MarkdownParseMode)
     }
 
     suspend fun sendMissingRewardNotification(entry: RewardEntry) = bot.sendTextMessage(

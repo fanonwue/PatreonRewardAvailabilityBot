@@ -22,7 +22,7 @@ object App {
     @JvmStatic
     private val logger = KotlinLogging.logger {  }
 
-    private val fetcher = PatreonFetcher()
+    private val fetcher = PatreonFetcher(Config.sharedHttpClient)
 
     private val scope by lazy {
         CoroutineScope(Dispatchers.Default)
@@ -33,7 +33,8 @@ object App {
     private val notificationTelegramBot by lazy {
         TelegramBot(
             Config.telegramApiKey,
-            fetcher
+            fetcher,
+            Config.sharedHttpClient
         )
     }
 
@@ -107,7 +108,6 @@ object App {
                 }
                 else -> logger.error(it) { "An Error occured!" }
             }
-
             null
         }
     }
@@ -117,9 +117,8 @@ object App {
             if (entry.availableSince == null) entry.availableSince = Instant.now()
             try {
                 if (entry.lastNotified == null || entry.availableSince!!.isAfter(entry.lastNotified)) {
-                    val message =
-                        notificationTelegramBot.sendAvailabilityNotification(entry.chat.id.value, reward, fetcher.fetchCampaign(reward))
-                    message?.also { entry.lastNotified = Instant.now() }
+                    notificationTelegramBot.sendAvailabilityNotification(entry.chat.id.value, reward, fetcher.fetchCampaign(reward))
+                    entry.lastNotified = Instant.now()
                     logger.info {
                         "Notification for the availability of reward ${entry.id} sent at ${
                             InstantSerializer.formatter.format(

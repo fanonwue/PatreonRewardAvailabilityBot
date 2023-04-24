@@ -14,7 +14,9 @@ import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import mu.KotlinLogging
 
-class PatreonFetcher {
+class PatreonFetcher(
+    private val httpClient: HttpClient
+) {
 
     companion object {
         @JvmStatic
@@ -22,11 +24,6 @@ class PatreonFetcher {
     }
 
     private val BASE_URI = "${Config.baseDomain}/api"
-    val client = HttpClient(CIO) {
-        install(ContentNegotiation) {
-            json(Config.jsonSerializer)
-        }
-    }
 
     @Throws(RewardNotFoundException::class, RuntimeException::class)
     suspend fun checkAvailability(rewardId: Long) = let {
@@ -40,7 +37,7 @@ class PatreonFetcher {
     @Throws(RewardUnavailableException::class, RuntimeException::class)
     suspend fun fetchReward(rewardId: Long) = let {
         logger.debug { "Fetching reward $rewardId" }
-        val result = client.get("$BASE_URI/rewards/$rewardId")
+        val result = httpClient.get("$BASE_URI/rewards/$rewardId")
 
         if (result.status == HttpStatusCode.NotFound) throw RewardNotFoundException("Reward $rewardId gave 404 Not Found", rewardId)
         if (result.status == HttpStatusCode.Forbidden) throw RewardForbiddenException("Access to reward $rewardId is forbidden", rewardId)
@@ -52,7 +49,7 @@ class PatreonFetcher {
     @Throws(CampaignUnavailableException::class, RuntimeException::class)
     suspend fun fetchCampaign(campaignId: Long) = let {
         logger.debug { "Fetching campaign $campaignId" }
-        val result = client.get("$BASE_URI/campaigns/$campaignId")
+        val result = httpClient.get("$BASE_URI/campaigns/$campaignId")
 
         if (result.status == HttpStatusCode.NotFound) throw CampaignNotFoundException("Campaign $campaignId gave 404 Not Found", campaignId)
         if (result.status == HttpStatusCode.Forbidden) throw CampaignForbiddenException("Access to campaign $campaignId is forbidden", campaignId)

@@ -1,5 +1,9 @@
 package de.arisendrake.patreonrewardavailabilitybot
 
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.json.Json
 import java.nio.file.Path
@@ -12,7 +16,7 @@ import kotlin.io.path.bufferedReader
 
 object Config {
     const val DEFAULT_CONFIG_PATH = "config/config.ini"
-    const val DEFAULT_DATA_PATH = "data/rewards.json"
+    const val DEFAULT_DATA_PATH = "data/main.db"
 
     val charset = Charsets.UTF_8
 
@@ -24,6 +28,19 @@ object Config {
                 }
             ).bufferedReader(charset).use {
                 props.load(it)
+            }
+        }
+    }
+
+    val jsonSerializer get() = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+    }
+
+    val sharedHttpClient by lazy {
+        HttpClient(CIO) {
+            install(ContentNegotiation) {
+                json(jsonSerializer)
             }
         }
     }
@@ -56,14 +73,8 @@ object Config {
     val baseDomain: String
     by lazy { getValue("baseDomain", "https://www.patreon.com") }
 
-    val rewardsListFile: Path
-    by lazy { getValue("run.rewardsListFile", DEFAULT_DATA_PATH) }
-
-    val jsonSerializer get() = Json {
-        ignoreUnknownKeys = true
-        isLenient = true
-        encodeDefaults = true
-    }
+    val databasePath: Path
+    by lazy { getValue("run.databasePath", DEFAULT_DATA_PATH) }
 
     private inline fun <reified T, reified R> getValue(key: String, default: R) = let {
         val value = configStore.getProperty(key, when (R::class) {
