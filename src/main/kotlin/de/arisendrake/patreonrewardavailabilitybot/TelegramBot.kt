@@ -22,6 +22,7 @@ import dev.inmo.tgbotapi.extensions.behaviour_builder.buildBehaviourWithLongPoll
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.CommonMessageFilter
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommand
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommandWithArgs
+import dev.inmo.tgbotapi.extensions.utils.fromUserMessageOrNull
 import dev.inmo.tgbotapi.types.BotCommand
 import dev.inmo.tgbotapi.types.message.MarkdownParseMode
 import dev.inmo.tgbotapi.types.message.abstracts.CommonMessage
@@ -89,6 +90,19 @@ class TelegramBot(
         val botCommandList = mutableListOf<BotCommand>()
         val addToCommandList: (BotCommand) -> Unit = { botCommandList.add(it) }
 
+        onCommand(BotCommand("start",
+            "Start interaction with bot"
+        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {
+
+            val newlyCreated = newSuspendedTransaction(Config.dbContext) {
+                Chat.findById(it.chat.id.chatId)?.let { false } ?: Chat.new {  }.let { true }
+            }
+
+            if (newlyCreated) reply(it,
+                "Welcome to the Patreon Rewards Availability Bot, ${it.fromUserMessageOrNull()?.user?.username?.username}"
+            )
+        }
+
         onCommandWithArgs(BotCommand("add",
             "Adds a reward ID to the list of observed rewards"
         ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {context, args ->
@@ -98,7 +112,7 @@ class TelegramBot(
                 return@onCommandWithArgs
             }
             
-            val uniqueNewIds = newSuspendedTransaction {
+            val uniqueNewIds = newSuspendedTransaction(Config.dbContext) {
                 val currentRewardIds = RewardEntries
                     .slice(rewardId)
                     .select { chat eq context.chat.id.chatId }.map {
@@ -112,9 +126,9 @@ class TelegramBot(
                 return@onCommandWithArgs
             }
 
-            newSuspendedTransaction { uniqueNewIds.forEach {it ->
+            newSuspendedTransaction(Config.dbContext) { uniqueNewIds.forEach {it ->
                 RewardEntry.new {
-                    chat = Chat.insertIfNotExists(context.chat.id.chatId)
+                    chat = Chat[context.chat.id.chatId]
                     rewardId = it
                 }
             } }
@@ -137,7 +151,7 @@ class TelegramBot(
                 return@onCommandWithArgs
             }
 
-            newSuspendedTransaction {
+            newSuspendedTransaction(Config.dbContext) {
                 RewardEntries.deleteWhere {
                     (chat eq context.chat.id.chatId) and (rewardId inList rewardIds)
                 }
@@ -151,7 +165,7 @@ class TelegramBot(
             "Resets notifications for all rewards, so you'll be notified again about rewards that are still available"
         ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) { context ->
             val msg = reply(context, "Resetting last notification timestamps...")
-            newSuspendedTransaction {
+            newSuspendedTransaction(Config.dbContext) {
                 RewardEntries.update({chat eq context.chat.id.chatId}, null) {
                     it[lastNotified] = null
                 }
@@ -185,7 +199,7 @@ class TelegramBot(
         val unavailableCampaigns = mutableMapOf<Long, UnavailabilityReason>()
         val unavailableRewards = mutableMapOf<Long, UnavailabilityReason>()
 
-        var messageContent = newSuspendedTransaction { RewardEntry.find { chat eq message.chat.id.chatId }.map { entry ->
+        var messageContent = newSuspendedTransaction(Config.dbContext) { RewardEntry.find { chat eq message.chat.id.chatId }.map { entry ->
             async {
                 try {
                     val reward = fetcher.fetchReward(entry.rewardId)

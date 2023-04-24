@@ -4,7 +4,7 @@ import de.arisendrake.patreonrewardavailabilitybot.exceptions.CampaignNotFoundEx
 import de.arisendrake.patreonrewardavailabilitybot.exceptions.RewardForbiddenException
 import de.arisendrake.patreonrewardavailabilitybot.exceptions.RewardNotFoundException
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardEntry
-import de.arisendrake.patreonrewardavailabilitybot.model.db.Chats
+import de.arisendrake.patreonrewardavailabilitybot.model.db.DbHelper
 import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.Data
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.RewardsAttributes
@@ -12,10 +12,9 @@ import de.arisendrake.patreonrewardavailabilitybot.model.serializers.InstantSeri
 import kotlinx.coroutines.*
 import kotlinx.coroutines.time.delay
 import mu.KotlinLogging
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.SchemaUtils
+import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
-import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.transactions.experimental.suspendedTransaction
 import java.time.Instant
 
 object App {
@@ -39,11 +38,7 @@ object App {
     }
 
     fun run() {
-        Database.connect("jdbc:h2:./data/h2.db", "org.h2.Driver")
-        transaction {
-            SchemaUtils.createMissingTablesAndColumns(Chats, RewardEntries)
-        }
-
+        DbHelper.db
 
         logger.info { "Starting Telegram Bot" }
         scope.launch { notificationTelegramBot.start() }
@@ -59,7 +54,8 @@ object App {
             while (isActive) {
                 logger.info { "Checking reward availability" }
 
-                val availableRewards = newSuspendedTransaction(context) {
+
+                val availableRewards = newSuspendedTransaction {
                     RewardEntry.all().map {
                         async { doAvailabilityCheck(it) }
                     }.awaitAll().filterNotNull()
@@ -71,7 +67,7 @@ object App {
         }
     }
 
-    private suspend fun doAvailabilityCheck(entry: RewardEntry) = newSuspendedTransaction {
+    private suspend fun Transaction.doAvailabilityCheck(entry: RewardEntry) : RewardEntry? = suspendedTransaction {
         logger.debug { "Checking reward availability for reward $entry" }
         try {
             val result = fetcher.checkAvailability(entry.rewardId)
@@ -110,8 +106,8 @@ object App {
         null
     }
 
-    private suspend fun onRewardAvailability(reward: Data<RewardsAttributes>) = newSuspendedTransaction {
-        RewardEntry.find { RewardEntries.rewardId eq reward.id }.forEach { entry ->
+    private suspend fun Transaction.onRewardAvailability(reward: Data<RewardsAttributes>) = suspendedTransaction {
+        RewardEntry.find { RewardEntries.rewardId eq reward.id }.firstOrNull()?.let { entry ->
             if (entry.availableSince == null) entry.availableSince = Instant.now()
             try {
                 if (entry.lastNotified == null || entry.availableSince!!.isAfter(entry.lastNotified)) {
