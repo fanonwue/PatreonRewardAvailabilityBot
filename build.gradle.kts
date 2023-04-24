@@ -5,7 +5,7 @@ plugins {
     kotlin("plugin.serialization") version "1.8.20"
     java
     application
-    id("com.github.johnrengelman.shadow") version "8.1.0"
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 group = "de.arisendrake"
