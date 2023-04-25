@@ -186,24 +186,16 @@ class TelegramBot(
             onListCommand(message)
         }
 
-        onCommand(BotCommand("start",
-            "Start interaction with bot"
-        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {
-
-            val newlyCreated = newSuspendedTransaction(Config.dbContext) {
-                val chatId = it.chat.id.chatId
-                Chat.findById(chatId)?.let { false } ?: Chat.new(chatId) {  }.let { true }
-            }
-
-            if (newlyCreated) reply(it,
-                "Welcome to the Patreon Rewards Availability Bot, ${it.fromUserMessageOrNull()?.user?.username?.username}"
-            )
-        }
-
         onCommandWithArgs(BotCommand("language",
             "Sets the language that should be used. For now, this only includes number formatting, sorry!"
         ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {message, args ->
             sendActionTyping(message.chat)
+
+            if (args.isEmpty()) {
+                val locale = getLocaleForChat(message.chat.id.chatId)
+                reply(message, "Language is currently set to \"${locale.displayName}\"")
+                return@onCommandWithArgs
+            }
 
             if (args.size != 1) {
                 reply(message, "Exactly one argument (an ISO 639 language code) is expected")
@@ -222,6 +214,20 @@ class TelegramBot(
             }
 
             reply(message, "Language has been successfully set to \"${locale.displayName}\"")
+        }
+
+        onCommand(BotCommand("start",
+            "Start interaction with bot"
+        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {
+
+            val newlyCreated = newSuspendedTransaction(Config.dbContext) {
+                val chatId = it.chat.id.chatId
+                Chat.findById(chatId)?.let { false } ?: Chat.new(chatId) {  }.let { true }
+            }
+
+            if (newlyCreated) reply(it,
+                "Welcome to the Patreon Rewards Availability Bot, ${it.fromUserMessageOrNull()?.user?.username?.username}"
+            )
         }
 
         setMyCommands(botCommandList)
