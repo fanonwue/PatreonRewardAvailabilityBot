@@ -79,8 +79,10 @@ class TelegramBot(
                 *${ra.title}*
                 Cost: 
                 *${ra.formattedAmount(locale)} ${ra.currency.currencyCode}*
+                ID:
+                ${reward.id}
                 
-                ([Reward ${reward.id}](${ra.fullUrl}))
+                ([Join now!](${ra.fullUrl}))
             """.trimIndent()
         bot.sendTextMessage(chatId.toChatId(), text, MarkdownParseMode)
     }
@@ -247,28 +249,45 @@ class TelegramBot(
     private suspend fun BehaviourContext.onListCommand(message: CommonMessage<TextContent>) = coroutineScope {
         val unavailableCampaigns = mutableMapOf<Long, UnavailabilityReason>()
         val unavailableRewards = mutableMapOf<Long, UnavailabilityReason>()
-        val locale = getLocaleForChat(message.chat.id.chatId)
-        var messageContent = newSuspendedTransaction(Config.dbContext) {
+
+        val fetchedRewardsByCampaign = newSuspendedTransaction(Config.dbContext) {
             RewardEntries.slice(rewardId).select { chat eq message.chat.id.chatId }.map { it[rewardId] }
         }.map { rewardId ->
             async { runCatching {
-                val reward = fetcher.fetchReward(rewardId)
-                val campaign = fetcher.fetchCampaign(reward.relationships.campaign?.data!!.id)
-                // Create an artificial combined key for sorting
-                (campaign.attributes.name to reward.attributes.amount) to formatForList(reward, campaign, locale)
+                fetcher.fetchReward(rewardId)
             }.getOrElse { e ->
-                when (e) {
-                    is RewardUnavailableException -> e.rewardId?.let { unavailableRewards[it] = e.unavailabilityReason }
-                    is CampaignUnavailableException -> e.campaignId?.let { unavailableCampaigns[it] = e.unavailabilityReason }
-                    else -> logger.error(e) { "Exception while trying to fetch reward" }
-                }
+                if (e is RewardUnavailableException) e.rewardId?.let { unavailableRewards[it] = e.unavailabilityReason }
                 null
             } }
-        }.awaitAll().filterNotNull().sortedWith(compareBy( { it.first.first }, {it.first.second} )  ).joinToString(
-            lineSeparator
-        ) { it.second }
+        }.awaitAll().filterNotNull().sortedBy { it.attributes.amountCents }.groupBy { it.relationships.campaign!!.data.id }
 
-        if (messageContent.isBlank()) messageContent = "No observed rewards found!"
+        val fetchedCampaignsById = fetchedRewardsByCampaign.keys.map { async {
+            runCatching {
+                fetcher.fetchCampaign(it)
+            }.getOrElse { e ->
+                if (e is CampaignUnavailableException) e.campaignId?.let { unavailableCampaigns[it] = e.unavailabilityReason }
+                null
+            }
+        } }.awaitAll().filterNotNull().associateBy { it.id }
+
+
+        val groupedRewardsByCampaign = fetchedCampaignsById.map {
+            val rewards = fetchedRewardsByCampaign.getOrElse(it.key) { null } ?: return@map null
+            it.value to rewards
+        }.filterNotNull().sortedBy { it.first.attributes.name }
+
+        val locale = getLocaleForChat(message.chat.id.chatId)
+
+
+        val messageContent = if (groupedRewardsByCampaign.isEmpty()) {
+            "No observed rewards found!"
+        } else {
+            groupedRewardsByCampaign.joinToString(
+                "\n\n",
+                "The following rewards are being observed:\n\n"
+            ) { formatForList(it.first, it.second, locale) }
+        }
+
 
         reply(message, messageContent, MarkdownParseMode, true)
 
@@ -333,15 +352,21 @@ class TelegramBot(
 
 
     private fun formatForList(
-        reward: Data<RewardsAttributes>, campaign: Data<CampaignAttributes>,
+        campaign: Data<CampaignAttributes>,
+        rewards: Iterable<Data<RewardsAttributes>>,
         locale: Locale = defaultLocale
-    ) = let {
+    ) : String {
         val ca = campaign.attributes
-        val ra = reward.attributes
-        """
-            [${ca.name}](${ca.url}) - *${ra.title}* for ${ra.formattedAmount(locale)} ${ra.currency.currencyCode}
-            (ID: *${reward.id}*)
-        """.trimIndent()
+        val campaignString = "[${ca.name}](${ca.url})\n"
+        val rewardLines = rewards.map {
+            val ra = it.attributes
+            "*${ra.title}* / ${ra.formattedAmount(locale)} ${ra.currency.currencyCode}\n(ID ${it.id})"
+        }
+
+        val joinedRewardLine = if (rewardLines.isEmpty()) "No rewards found for this campaign (how does this happen???)"
+        else rewardLines.joinToString("\n")
+
+        return campaignString + joinedRewardLine
     }
 
     private fun getIdsFromArguments(arguments: Array<String>) = arguments.map {
