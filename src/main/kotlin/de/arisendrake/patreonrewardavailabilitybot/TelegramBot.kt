@@ -98,7 +98,7 @@ class TelegramBot(
     
     suspend fun start() = bot.buildBehaviourWithLongPolling(timeoutSeconds = 60) {
         val botCommandList = mutableListOf<BotCommand>()
-        val addToCommandList: (BotCommand) -> Unit = { botCommandList.add(it) }
+        val addToCommandList: BotCommand.() -> Unit = { botCommandList.add(this) }
 
         onCommandWithArgs(BotCommand("add",
             "Adds a reward ID to the list of observed rewards"
@@ -124,14 +124,14 @@ class TelegramBot(
                 return@onCommandWithArgs
             }
 
-            newSuspendedTransaction(Config.dbContext) { uniqueNewIds.forEach {it ->
+            newSuspendedTransaction(Config.dbContext) { uniqueNewIds.forEach {
                 RewardEntry.new {
                     chat = Chat[message.chat.id.chatId]
                     rewardId = it
                 }
             } }
 
-            reply(message, "Reward IDs [${uniqueNewIds.joinToString(", ")}] successfully added.".let { it ->
+            reply(message, "Reward IDs [${uniqueNewIds.joinToString(", ")}] successfully added.".let {
                 if (rewardIds.size > uniqueNewIds.size)
                     "$it\nSome IDs have been added already and were filtered out."
                 else
@@ -250,24 +250,25 @@ class TelegramBot(
         val unavailableCampaigns = mutableMapOf<Long, UnavailabilityReason>()
         val unavailableRewards = mutableMapOf<Long, UnavailabilityReason>()
         val locale = getLocaleForChat(message.chat.id.chatId)
-        var messageContent = newSuspendedTransaction(Config.dbContext) { RewardEntry.find { chat eq message.chat.id.chatId }.map { entry ->
-            async {
-                try {
-                    val reward = fetcher.fetchReward(entry.rewardId)
-                    val campaign = fetcher.fetchCampaign(reward.relationships.campaign?.data!!.id)
-                    // Create an artificial combined key for sorting
-                    (campaign.attributes.name to reward.attributes.amount) to formatForList(reward, campaign, locale)
-                } catch (e: RewardUnavailableException) {
-                    e.rewardId?.let { unavailableRewards[it] = e.unavailabilityReason }
-                    null
-                } catch (e: CampaignUnavailableException) {
-                    e.campaignId?.let { unavailableCampaigns[it] = e.unavailabilityReason}
-                    null
+        var messageContent = newSuspendedTransaction(Config.dbContext) {
+            RewardEntries.slice(rewardId).select { chat eq message.chat.id.chatId }.map { it[rewardId] }
+        }.map { rewardId ->
+            async { runCatching {
+                val reward = fetcher.fetchReward(rewardId)
+                val campaign = fetcher.fetchCampaign(reward.relationships.campaign?.data!!.id)
+                // Create an artificial combined key for sorting
+                (campaign.attributes.name to reward.attributes.amount) to formatForList(reward, campaign, locale)
+            }.getOrElse { e ->
+                when (e) {
+                    is RewardUnavailableException -> e.rewardId?.let { unavailableRewards[it] = e.unavailabilityReason }
+                    is CampaignUnavailableException -> e.campaignId?.let { unavailableCampaigns[it] = e.unavailabilityReason }
+                    else -> logger.error(e) { "Exception while trying to fetch reward" }
                 }
-            }
+                null
+            } }
         }.awaitAll().filterNotNull().sortedWith(compareBy( { it.first.first }, {it.first.second} )  ).joinToString(
             lineSeparator
-        ) { it.second } }
+        ) { it.second }
 
         if (messageContent.isBlank()) messageContent = "No observed rewards found!"
 
