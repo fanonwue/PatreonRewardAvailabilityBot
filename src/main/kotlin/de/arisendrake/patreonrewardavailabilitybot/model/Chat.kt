@@ -1,6 +1,7 @@
 package de.arisendrake.patreonrewardavailabilitybot.model
 
 import de.arisendrake.patreonrewardavailabilitybot.model.db.Chats
+import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries
 import org.jetbrains.exposed.dao.LongEntity
 import org.jetbrains.exposed.dao.LongEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
@@ -24,4 +25,6 @@ class Chat(id: EntityID<Long>) : LongEntity(id) {
         set(value) {
             language = value.isO3Language
         }
+
+    val rewardEntries by RewardEntry referrersOn RewardEntries.chat
 }
