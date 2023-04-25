@@ -245,8 +245,6 @@ class TelegramBot(
     }.join()
 
     private suspend fun BehaviourContext.onListCommand(message: CommonMessage<TextContent>) = coroutineScope {
-        val responseMessage = reply(message, "Fetching data...")
-
         val unavailableCampaigns = mutableMapOf<Long, UnavailabilityReason>()
         val unavailableRewards = mutableMapOf<Long, UnavailabilityReason>()
         val locale = getLocaleForChat(message.chat.id.chatId)
@@ -272,7 +270,7 @@ class TelegramBot(
 
         if (messageContent.isBlank()) messageContent = "No observed rewards found!"
 
-        editMessageText(responseMessage, messageContent, MarkdownParseMode, true)
+        reply(message, messageContent, MarkdownParseMode, true)
 
         if (unavailableRewards.isNotEmpty()) sendTextMessage(
             message.chat.id,
