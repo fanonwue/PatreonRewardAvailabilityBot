@@ -10,7 +10,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.time.Duration
 import java.time.Instant
-import java.util.Properties
+import java.util.*
 import kotlin.coroutines.CoroutineContext
 import kotlin.io.path.bufferedReader
 
@@ -44,6 +44,8 @@ object Config {
             }
         }
     }
+
+    val defaultLocale = Locale.ENGLISH
 
 
     @OptIn(ExperimentalCoroutinesApi::class)

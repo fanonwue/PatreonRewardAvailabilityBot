@@ -5,8 +5,9 @@ import de.arisendrake.patreonrewardavailabilitybot.model.serializers.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.net.URI
-import java.time.Instant
-import java.util.Currency
+import java.text.DecimalFormat
+import java.text.NumberFormat
+import java.util.Locale
 
 @Serializable
 data class RewardsAttributes(
@@ -20,9 +21,12 @@ data class RewardsAttributes(
     @SerialName("edited_at") val editedAt: InstantAsIsoString
 ) {
     val fullUrl get() = URI.create(Config.baseDomain + url)
-    val formattedAmount get() = let {
-        val cents = (amount % 100)
-        val full = amount / 100
-        if (cents > 0) "$full.${cents.toString().padStart(2, '0')}" else full.toString()
+
+    val formattedAmount get() = formattedAmount()
+
+    fun formattedAmount(locale: Locale = Config.defaultLocale) : String {
+        val formatter = NumberFormat.getNumberInstance(locale) as DecimalFormat
+        formatter.maximumFractionDigits = 2
+        return formatter.format(amount.toDouble() / 100)
     }
 }

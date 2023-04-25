@@ -4,7 +4,7 @@ import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.dao.id.LongIdTable
 import org.jetbrains.exposed.sql.javatime.timestamp
 
-object RewardEntries : LongIdTable() {
+object RewardEntries : IntIdTable() {
     val chat = reference("chat", Chats.id)
     val rewardId = long("reward_id")
     val availableSince = timestamp("available_since").nullable()

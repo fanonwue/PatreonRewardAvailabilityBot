@@ -1,11 +1,14 @@
 package de.arisendrake.patreonrewardavailabilitybot.model.db
 
-import org.jetbrains.exposed.dao.id.IntIdTable
-import org.jetbrains.exposed.dao.id.LongIdTable
+import org.jetbrains.exposed.dao.id.IdTable
+import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.javatime.CurrentTimestamp
 import org.jetbrains.exposed.sql.javatime.timestamp
-import java.time.Instant
+import java.util.*
 
-object Chats : LongIdTable(columnName = "chat_id") {
+object Chats : IdTable<Long>() {
+    override val id = long("chat_id").entityId()
+    override val primaryKey = PrimaryKey(id)
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp())
+    val language = char("locale", 3).default(Locale.ENGLISH.isO3Language)
 }

@@ -4,6 +4,7 @@ import de.arisendrake.patreonrewardavailabilitybot.model.db.Chats
 import org.jetbrains.exposed.dao.LongEntity
 import org.jetbrains.exposed.dao.LongEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
+import java.util.Locale
 
 class Chat(id: EntityID<Long>) : LongEntity(id) {
     companion object : LongEntityClass<Chat>(Chats) {
@@ -12,5 +13,15 @@ class Chat(id: EntityID<Long>) : LongEntity(id) {
         }
     }
 
-    val createdAt  by Chats.createdAt
+    val createdAt by Chats.createdAt
+
+    /**
+     * 3-letter locale code
+     */
+    private var language by Chats.language
+
+    var locale get() = Locale.forLanguageTag(language)
+        set(value) {
+            language = value.isO3Language
+        }
 }

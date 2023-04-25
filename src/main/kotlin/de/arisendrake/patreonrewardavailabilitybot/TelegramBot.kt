@@ -38,6 +38,7 @@ import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.update
+import java.util.*
 
 class TelegramBot(
     apiKey: String,
@@ -49,6 +50,7 @@ class TelegramBot(
         private const val lineSeparator = "\n-----------------------------------------\n"
         @JvmStatic
         private val logger = KotlinLogging.logger {  }
+        private val defaultLocale = Config.defaultLocale
     }
 
     private val bot = telegramBot(
@@ -66,6 +68,7 @@ class TelegramBot(
         campaign: Data<CampaignAttributes>
     ) {
         bot.sendActionTyping(chatId.toChatId())
+        val locale = getLocaleForChat(chatId)
         val ca = campaign.attributes
         val ra = reward.attributes
         val text =
@@ -75,7 +78,7 @@ class TelegramBot(
                 Name: 
                 *${ra.title}*
                 Cost: 
-                *${ra.formattedAmount} ${ra.currency.currencyCode}*
+                *${ra.formattedAmount(locale)} ${ra.currency.currencyCode}*
                 
                 ([Reward ${reward.id}](${ra.fullUrl}))
             """.trimIndent()
@@ -197,6 +200,30 @@ class TelegramBot(
             )
         }
 
+        onCommandWithArgs(BotCommand("language",
+            "Sets the language that should be used. For now, this only includes number formatting, sorry!"
+        ).also(addToCommandList), initialFilter = messageFilterCreatorOnly) {message, args ->
+            sendActionTyping(message.chat)
+
+            if (args.size != 1) {
+                reply(message, "Exactly one argument (an ISO 639 language code) is expected")
+                return@onCommandWithArgs
+            }
+
+            val code = args.first().trim()
+            if (code.length < 2 || code.length > 3) {
+                reply(message, "An ISO 639 language code must be 2 or 3 characters long")
+                return@onCommandWithArgs
+            }
+
+            val locale = Locale.forLanguageTag(code)
+            newSuspendedTransaction(Config.dbContext) {
+                Chat[message.chat.id.chatId].locale = locale
+            }
+
+            reply(message, "Language has been successfully set to \"${locale.displayName}\"")
+        }
+
         setMyCommands(botCommandList)
 
 //        onPhoto {
@@ -216,14 +243,14 @@ class TelegramBot(
 
         val unavailableCampaigns = mutableMapOf<Long, UnavailabilityReason>()
         val unavailableRewards = mutableMapOf<Long, UnavailabilityReason>()
-
+        val locale = getLocaleForChat(message.chat.id.chatId)
         var messageContent = newSuspendedTransaction(Config.dbContext) { RewardEntry.find { chat eq message.chat.id.chatId }.map { entry ->
             async {
                 try {
                     val reward = fetcher.fetchReward(entry.rewardId)
                     val campaign = fetcher.fetchCampaign(reward.relationships.campaign?.data!!.id)
                     // Create an artificial combined key for sorting
-                    (campaign.attributes.name to reward.attributes.amount) to formatForList(reward, campaign)
+                    (campaign.attributes.name to reward.attributes.amount) to formatForList(reward, campaign, locale)
                 } catch (e: RewardUnavailableException) {
                     e.rewardId?.let { unavailableRewards[it] = e.unavailabilityReason }
                     null
@@ -280,10 +307,11 @@ class TelegramBot(
             async { runCatching { fetcher.fetchReward(it.id) }.getOrNull() }
         }.awaitAll().filterNotNull()
 
+        val locale = getLocaleForChat(message.chat.id.chatId)
         val stringifiedRewardData = rewardData.map {
             val attributes = it.attributes
             """
-                *${attributes.title}* for ${attributes.formattedAmount} ${attributes.currency.currencyCode}
+                *${attributes.title}* for ${attributes.formattedAmount(locale)} ${attributes.currency.currencyCode}
                 ID: *${it.id}*
             """.trimIndent()
         }
@@ -299,11 +327,14 @@ class TelegramBot(
         .toSet()
 
 
-    private fun formatForList(reward: Data<RewardsAttributes>, campaign: Data<CampaignAttributes>) = let {
+    private fun formatForList(
+        reward: Data<RewardsAttributes>, campaign: Data<CampaignAttributes>,
+        locale: Locale = defaultLocale
+    ) = let {
         val ca = campaign.attributes
         val ra = reward.attributes
         """
-            [${ca.name}](${ca.url}) - *${ra.title}* for ${ra.formattedAmount} ${ra.currency.currencyCode}
+            [${ca.name}](${ca.url}) - *${ra.title}* for ${ra.formattedAmount(locale)} ${ra.currency.currencyCode}
             (ID: *${reward.id}*)
         """.trimIndent()
     }
@@ -317,5 +348,9 @@ class TelegramBot(
             ${it.key} (${it.value.displayName})
         """.trimIndent()
     }.joinToString("\n")
+
+    private suspend fun getLocaleForChat(chatId: Long) = newSuspendedTransaction(Config.dbContext) {
+        Chat.findById(chatId)?.locale ?: defaultLocale
+    }
 }
 
