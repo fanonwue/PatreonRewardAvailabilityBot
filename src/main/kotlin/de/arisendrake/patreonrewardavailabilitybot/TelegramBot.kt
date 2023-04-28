@@ -260,15 +260,17 @@ class TelegramBot(
         onCommand(BotCommand("start",
             "Start interaction with bot"
         ).apply(addToCommandList), initialFilter = messageFilterCreatorOnly) {
-
+            val chatId = it.chat.id.chatId
             val newlyCreated = newSuspendedTransaction(Config.dbContext) {
-                val chatId = it.chat.id.chatId
                 Chat.findById(chatId)?.let { false } ?: Chat.new(chatId) {  }.let { true }
             }
 
-            if (newlyCreated) reply(it,
+            if (!newlyCreated) return@onCommand
+
+            reply(it,
                 "Welcome to the Patreon Rewards Availability Bot, ${it.fromUserMessageOrNull()?.user?.username?.username}"
             )
+            logger.info { "Added new chat $chatId" }
         }
 
         setMyCommands(botCommandList)
