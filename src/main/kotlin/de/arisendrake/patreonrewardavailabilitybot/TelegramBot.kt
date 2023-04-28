@@ -114,7 +114,7 @@ class TelegramBot(
                 // Preload current chat with rewardEntries already loaded to avoid N+1 problem
                 val currentChat = currentChat(message).load(Chat::rewardEntries)
                 val currentRewardIds = currentChat.rewardEntries.map { it.rewardId }
-                val uniqueNewIds = rewardIds.filterNot { currentRewardIds.contains(it) }
+                val uniqueNewIds = rewardIds.filter { it !in currentRewardIds }
 
                 if (uniqueNewIds.isEmpty()) {
                     reply(message, "All IDs have been added already. No new ID has been added.")
@@ -183,16 +183,23 @@ class TelegramBot(
                 null
             } } }.awaitAll().asSequence().filterNotNull().map {
                 it.relationships.rewards?.data
-            }.filterNotNull().flatten().map { it.id }.toSet()
+            }.filterNotNull().flatten().map { it.id }.filter { it > 0 }.toSet()
 
-            newSuspendedTransaction(Config.dbContext) {
-                RewardEntries.deleteWhere {
-                    (chat eq message.chat.id.chatId) and (rewardId inList rewardIds)
+            val removedRewardIds = newSuspendedTransaction(Config.dbContext) {
+                // Preload
+                val currentChat = currentChat(message).load(Chat::rewardEntries)
+                val rewardEntriesToRemove = currentChat.rewardEntries.filter {
+                    it.rewardId in rewardIds
                 }
+
+                // Using delete() on each entity here would create n delete queries, whereas this only creates a single query
+                RewardEntries.deleteWhere { id inList rewardEntriesToRemove.map { it.id } }
+
+                rewardEntriesToRemove.map { it.rewardId }
             }
 
-            if (rewardIds.isNotEmpty()) {
-                reply(message, "Reward IDs [${rewardIds.joinToString(", ")}] successfully removed.")
+            if (removedRewardIds.isNotEmpty()) {
+                reply(message, "Reward IDs [${removedRewardIds.joinToString(", ")}] successfully removed.")
             } else {
                 reply(message, "No observed rewards corresponding to any of the specified campaign IDs found, nothing got removed.")
             }
