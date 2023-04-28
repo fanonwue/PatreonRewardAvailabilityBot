@@ -32,13 +32,10 @@ import io.ktor.client.*
 import kotlinx.coroutines.*
 import mu.KotlinLogging
 import org.jetbrains.exposed.dao.load
+import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
-import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
-import org.jetbrains.exposed.sql.update
 import java.util.*
 
 class TelegramBot(
@@ -69,7 +66,7 @@ class TelegramBot(
         campaign: Data<CampaignAttributes>
     ) {
         bot.sendActionTyping(chatId.toChatId())
-        val locale = getLocaleForChat(chatId)
+        val locale = localeForChat(chatId)
         val ca = campaign.attributes
         val ra = reward.attributes
         val text =
@@ -115,7 +112,7 @@ class TelegramBot(
             
             newSuspendedTransaction(Config.dbContext) {
                 // Preload current chat with rewardEntries already loaded to avoid N+1 problem
-                val currentChat = Chat[message.chat.id.chatId].load(Chat::rewardEntries)
+                val currentChat = currentChat(message).load(Chat::rewardEntries)
                 val currentRewardIds = currentChat.rewardEntries.map { it.rewardId }
                 val uniqueNewIds = rewardIds.filterNot { currentRewardIds.contains(it) }
 
@@ -230,7 +227,7 @@ class TelegramBot(
             sendActionTyping(message.chat)
 
             if (args.isEmpty()) {
-                val locale = getLocaleForChat(message.chat.id.chatId)
+                val locale = localeForCurrentChat(message)
                 reply(message, "Language is currently set to \"${locale.displayName}\"")
                 return@onCommandWithArgs
             }
@@ -248,7 +245,7 @@ class TelegramBot(
 
             val locale = Locale.forLanguageTag(code)
             newSuspendedTransaction(Config.dbContext) {
-                Chat[message.chat.id.chatId].locale = locale
+                currentChat(message).locale = locale
             }
 
             reply(message, "Language has been successfully set to \"${locale.displayName}\"")
@@ -312,7 +309,7 @@ class TelegramBot(
             it.value to rewards
         }.filterNotNull().sortedBy { it.first.attributes.name }
 
-        val locale = getLocaleForChat(message.chat.id.chatId)
+        val locale = localeForCurrentChat(message)
 
 
         val messageContent = if (groupedRewardsByCampaign.isEmpty()) {
@@ -367,7 +364,7 @@ class TelegramBot(
             async { runCatching { fetcher.fetchReward(it.id) }.getOrNull() }
         }.awaitAll().filterNotNull()
 
-        val locale = getLocaleForChat(message.chat.id.chatId)
+        val locale = localeForCurrentChat(message)
         val stringifiedRewardData = rewardData.map {
             val attributes = it.attributes
             """
@@ -382,7 +379,6 @@ class TelegramBot(
     }
     
     private fun parseIdList(args: Array<String>)  = args.map { it.split(',') }.flatten()
-        .filterNot { it.isBlank() }
         .mapNotNull { it.trim().toLongOrNull() }
         .toSet()
 
@@ -415,8 +411,9 @@ class TelegramBot(
         """.trimIndent()
     }.joinToString("\n")
 
-    private suspend fun getLocaleForChat(chatId: Long) = newSuspendedTransaction(Config.dbContext) {
-        Chat.findById(chatId)?.locale ?: defaultLocale
-    }
+    private suspend fun localeForCurrentChat(message: CommonMessage<*>) = localeForChat(message.chat.id.chatId)
+    private suspend fun localeForChat(chatId: Long) = newSuspendedTransaction(Config.dbContext) { localeForChat(chatId) }
+    private fun Transaction.localeForChat(chatId: Long) = Chat.findById(chatId)?.locale ?: defaultLocale
+    private fun Transaction.currentChat(message: CommonMessage<*>) = Chat[message.chat.id.chatId]
 }
 
