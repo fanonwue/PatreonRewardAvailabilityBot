@@ -70,7 +70,7 @@ object Config {
     by lazy { getValue("run.interval", 300) }
 
     val initialDelay: Duration
-    by lazy { getValue("run.initialDelay", 5) }
+    by lazy { getValue("run.initialDelay", 0) }
 
     val baseDomain: String
     by lazy { getValue("baseDomain", "https://www.patreon.com") }
