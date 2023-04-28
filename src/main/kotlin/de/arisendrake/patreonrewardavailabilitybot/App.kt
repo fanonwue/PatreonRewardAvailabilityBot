@@ -93,7 +93,7 @@ object App {
                         logger.info { "Removing missing reward ${entry.id} from the rewards list" }
                         entry.delete()
                     } else if (Config.notifyOnMissingRewards && !entry.isMissing) {
-                        logger.info { "Notifying user of missing reward ${entry.id}" }
+                        logger.info { "Notifying user ${entry.chat.id.value} of missing reward ${entry.id}" }
                         notificationTelegramBot.sendMissingRewardNotification(entry)
                     }
                     entry.isMissing = true
@@ -101,7 +101,7 @@ object App {
                 is RewardForbiddenException -> {
                     logger.warn { it.message ?: "Access to reward ${entry.id} is forbidden" }
                     if (Config.notifyOnForbiddenRewards && !entry.isMissing) {
-                        logger.info { "Notifying user of reward ${entry.id} with forbidden access" }
+                        logger.info { "Notifying user ${entry.chat.id.value} of reward ${entry.id} with forbidden access" }
                         notificationTelegramBot.sendForbiddenRewardNotification(entry)
                     }
                     entry.isMissing = true

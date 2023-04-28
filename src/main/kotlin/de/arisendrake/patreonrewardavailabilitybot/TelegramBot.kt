@@ -86,15 +86,24 @@ class TelegramBot(
         bot.sendTextMessage(chatId.toChatId(), text, MarkdownParseMode)
     }
 
-    suspend fun sendMissingRewardNotification(entry: RewardEntry) = bot.sendTextMessage(
-        creatorId,
-        "WARNING: Reward with ID ${entry.id} could not be found. It may have been removed."
-    )
-    
+    suspend fun sendMissingRewardNotification(entry: RewardEntry) = newSuspendedTransaction {
+        sendMissingRewardNotification(entry.chat.id.value, entry)
+    }
 
-    suspend fun sendForbiddenRewardNotification(entry: RewardEntry) = bot.sendTextMessage(
-        creatorId,
-        "WARNING: Access to reward with ID ${entry.id} is forbidden. It may have been removed."
+    @SuppressWarnings("WeakerAccess")
+    suspend fun sendMissingRewardNotification(chatId: Long, entry: RewardEntry) = bot.sendTextMessage(
+        chatId.toChatId(),
+        "WARNING: Reward with ID ${entry.rewardId} could not be found. It may have been removed."
+    )
+
+    suspend fun sendForbiddenRewardNotification(entry: RewardEntry) = newSuspendedTransaction {
+        sendForbiddenRewardNotification(entry.chat.id.value, entry)
+    }
+
+    @SuppressWarnings("WeakerAccess")
+    suspend fun sendForbiddenRewardNotification(chatId: Long, entry: RewardEntry) = bot.sendTextMessage(
+        chatId.toChatId(),
+        "WARNING: Access to reward with ID ${entry.rewardId} is forbidden. It may have been removed."
     )
     
     suspend fun start() = bot.buildBehaviourWithLongPolling(timeoutSeconds = 60) {
