@@ -106,7 +106,7 @@ class TelegramBot(
             "Adds a reward ID to the list of observed rewards"
         ).apply(addToCommandList), initialFilter = messageFilterCreatorOnly) {message, args ->
             sendActionTyping(message.chat.id)
-            val rewardIds = parseRewardIdList(args)
+            val rewardIds = parseIdList(args)
             if (rewardIds.isEmpty()) {
                 reply(message, "One or multiple Rewards IDs expected as arguments")
                 return@onCommandWithArgs
@@ -147,12 +147,12 @@ class TelegramBot(
             sendActionTyping(message.chat.id)
             onCampaignAddCommand(message, args)
         }
-        
+
         onCommandWithArgs(BotCommand("remove",
             "Removes a reward ID from the list of observed rewards"
         ).apply(addToCommandList), initialFilter = messageFilterCreatorOnly) {message, args ->
             sendActionTyping(message.chat.id)
-            val rewardIds = parseRewardIdList(args)
+            val rewardIds = parseIdList(args)
             if (rewardIds.isEmpty()) {
                 reply(message, "One or multiple Rewards IDs expected as arguments")
                 return@onCommandWithArgs
@@ -165,7 +165,43 @@ class TelegramBot(
             }
 
             reply(message, "Reward IDs [${rewardIds.joinToString(", ")}] successfully removed.")
-            
+        }
+
+        onCommandWithArgs(BotCommand("remove_campaign",
+            "Removes all rewards associated with the specified campaign"
+        ).apply(addToCommandList), initialFilter = messageFilterCreatorOnly) {message, args ->
+            sendActionTyping(message.chat.id)
+            val campaignIds = parseIdList(args)
+            if (campaignIds.isEmpty()) {
+                reply(message, "One or multiple Campaign IDs expected as arguments")
+                return@onCommandWithArgs
+            }
+
+            val unavailableCampaigns = mutableMapOf<Long, UnavailabilityReason>()
+
+            val rewardIds = campaignIds.map { campaignId -> async { runCatching {
+                fetcher.fetchCampaign(campaignId)
+            }.getOrElse { e ->
+                if (e is CampaignUnavailableException) unavailableCampaigns[campaignId] = e.unavailabilityReason
+                null
+            } } }.awaitAll().asSequence().filterNotNull().map {
+                it.relationships.rewards?.data
+            }.filterNotNull().flatten().map { it.id }.toSet()
+
+            newSuspendedTransaction(Config.dbContext) {
+                RewardEntries.deleteWhere {
+                    (chat eq message.chat.id.chatId) and (rewardId inList rewardIds)
+                }
+            }
+
+            if (rewardIds.isNotEmpty()) {
+                reply(message, "Reward IDs [${rewardIds.joinToString(", ")}] successfully removed.")
+            } else {
+                reply(message, "No observed rewards corresponding to any of the specified campaign IDs found, nothing got removed.")
+            }
+
+            if (unavailableCampaigns.isNotEmpty()) sendTextMessage(message.chat,
+                "The following campaigns are unavailable:\n\n" + unavailableResourcesToString(unavailableCampaigns))
         }
         
         onCommand(BotCommand("reset_notifications",
@@ -272,7 +308,7 @@ class TelegramBot(
 
 
         val groupedRewardsByCampaign = fetchedCampaignsById.map {
-            val rewards = fetchedRewardsByCampaign.getOrElse(it.key) { null } ?: return@map null
+            val rewards = fetchedRewardsByCampaign[it.key] ?: return@map null
             it.value to rewards
         }.filterNotNull().sortedBy { it.first.attributes.name }
 
@@ -293,12 +329,12 @@ class TelegramBot(
 
         if (unavailableRewards.isNotEmpty()) sendTextMessage(
             message.chat.id,
-            "The following rewards are not available anymore\n\n" + unavailableResourcesToString(unavailableRewards)
+            "The following rewards are not available anymore:\n\n" + unavailableResourcesToString(unavailableRewards)
         )
 
         if (unavailableCampaigns.isNotEmpty()) sendTextMessage(
             message.chat.id,
-            "The following campaigns are not available anymore\n\n" + unavailableResourcesToString(unavailableCampaigns)
+            "The following campaigns are not available anymore:\n\n" + unavailableResourcesToString(unavailableCampaigns)
         )
     }
 
@@ -345,7 +381,7 @@ class TelegramBot(
         sendTextMessage(message.chat, "You can add a reward by using the /add command.")
     }
     
-    private fun parseRewardIdList(args: Array<String>)  = args.map { it.split(',') }.flatten()
+    private fun parseIdList(args: Array<String>)  = args.map { it.split(',') }.flatten()
         .filterNot { it.isBlank() }
         .mapNotNull { it.trim().toLongOrNull() }
         .toSet()
