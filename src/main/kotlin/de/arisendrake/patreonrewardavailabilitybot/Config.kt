@@ -21,13 +21,13 @@ object Config {
     val charset = Charsets.UTF_8
 
     val configStore by lazy {
-        Properties().also { props ->
+        Properties().apply {
             Paths.get(
                 System.getenv("CONFIG_PATH").let {
                     if (it.isNullOrBlank()) DEFAULT_CONFIG_PATH else it
                 }
             ).bufferedReader(charset).use {
-                props.load(it)
+                load(it)
             }
         }
     }

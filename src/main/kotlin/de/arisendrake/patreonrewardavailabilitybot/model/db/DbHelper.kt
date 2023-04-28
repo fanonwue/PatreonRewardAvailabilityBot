@@ -17,7 +17,7 @@ object DbHelper {
             "jdbc:sqlite:${Config.databasePath}",
             "org.sqlite.JDBC",
             databaseConfig = dbConfig
-        ).also {
+        ).apply {
             transaction {
                 SchemaUtils.createMissingTablesAndColumns(Chats, RewardEntries)
             }
