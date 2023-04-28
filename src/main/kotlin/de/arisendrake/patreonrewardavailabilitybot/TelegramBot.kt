@@ -31,6 +31,7 @@ import dev.inmo.tgbotapi.types.toChatId
 import io.ktor.client.*
 import kotlinx.coroutines.*
 import mu.KotlinLogging
+import org.jetbrains.exposed.dao.load
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.and
@@ -112,33 +113,32 @@ class TelegramBot(
                 return@onCommandWithArgs
             }
             
-            val uniqueNewIds = newSuspendedTransaction(Config.dbContext) {
-                val currentRewardIds = RewardEntries
-                    .slice(rewardId)
-                    .select { chat eq message.chat.id.chatId }.map {
-                        it[rewardId]
-                    }
+            newSuspendedTransaction(Config.dbContext) {
+                // Preload current chat with rewardEntries already loaded to avoid N+1 problem
+                val currentChat = Chat[message.chat.id.chatId].load(Chat::rewardEntries)
+                val currentRewardIds = currentChat.rewardEntries.map { it.rewardId }
+                val uniqueNewIds = rewardIds.filterNot { currentRewardIds.contains(it) }
 
-                rewardIds.filterNot { currentRewardIds.contains(it) }
-            }
-            if (uniqueNewIds.isEmpty()) {
-                reply(message, "All IDs have been added already. No new ID has been added.")
-                return@onCommandWithArgs
-            }
-
-            newSuspendedTransaction(Config.dbContext) { uniqueNewIds.forEach {
-                RewardEntry.new {
-                    chat = Chat[message.chat.id.chatId]
-                    rewardId = it
+                if (uniqueNewIds.isEmpty()) {
+                    reply(message, "All IDs have been added already. No new ID has been added.")
+                    return@newSuspendedTransaction
                 }
-            } }
 
-            reply(message, "Reward IDs [${uniqueNewIds.joinToString(", ")}] successfully added.".let {
-                if (rewardIds.size > uniqueNewIds.size)
-                    "$it\nSome IDs have been added already and were filtered out."
-                else
-                    it
-            })
+                uniqueNewIds.forEach {
+                    RewardEntry.new {
+                        chat = currentChat
+                        rewardId = it
+                    }
+                }
+
+                reply(message, "Reward IDs [${uniqueNewIds.joinToString(", ")}] successfully added.".let {
+                    if (rewardIds.size > uniqueNewIds.size)
+                        "$it\nSome IDs have been added already and were filtered out."
+                    else
+                        it
+                })
+            }
+
         }
 
         onCommandWithArgs(BotCommand("add_campaign",
