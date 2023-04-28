@@ -69,7 +69,7 @@ object App {
     }
 
     private suspend fun Transaction.doAvailabilityCheck(entry: RewardEntry) = suspendedTransaction {
-        logger.debug { "Checking reward availability for reward $entry" }
+        logger.debug { "Checking reward availability for reward ${entry.id.value} (internal ID)" }
         runCatching {
             val result = fetcher.checkAvailability(entry.rewardId)
             // Reward was found, so it's not missing
