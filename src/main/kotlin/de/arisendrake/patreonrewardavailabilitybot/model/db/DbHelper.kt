@@ -13,7 +13,6 @@ object DbHelper {
         val dbConfig = DatabaseConfig {
             //useNestedTransactions = true
             defaultIsolationLevel = Connection.TRANSACTION_READ_UNCOMMITTED
-            sqlLogger = defaultSqlLogger
         }
         Database.connect(
             "jdbc:sqlite:${Config.databasePath}",
@@ -26,11 +25,4 @@ object DbHelper {
         }
     }
 
-    val defaultSqlLogger = object : SqlLogger {
-        private val logger = KotlinLogging.logger("Exposed SQL Logger")
-        override fun log(context: StatementContext, transaction: Transaction) {
-            logger.debug { context.expandArgs(transaction) }
-        }
-
-    }
 }

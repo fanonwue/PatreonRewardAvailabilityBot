@@ -43,7 +43,6 @@ class TelegramBot(
     private val fetcher: PatreonFetcher,
     httpClient: HttpClient
 ) {
-
     companion object {
         private const val lineSeparator = "\n-----------------------------------------\n"
         @JvmStatic
@@ -407,10 +406,6 @@ class TelegramBot(
 
         return campaignString + joinedRewardLine
     }
-
-    private fun getIdsFromArguments(arguments: Array<String>) = arguments.map {
-        it.toLongOrNull()
-    }.filterNotNull()
 
     private fun unavailableResourcesToString(unavailableResources: Map<Long, UnavailabilityReason>) = unavailableResources.mapNotNull {
         """
