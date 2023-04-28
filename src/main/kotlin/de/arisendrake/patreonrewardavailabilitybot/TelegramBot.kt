@@ -302,8 +302,8 @@ class TelegramBot(
         val unavailableCampaigns = mutableMapOf<Long, UnavailabilityReason>()
         val unavailableRewards = mutableMapOf<Long, UnavailabilityReason>()
 
-        val fetchedRewardsByCampaign = newSuspendedTransaction(Config.dbContext) {
-            RewardEntries.slice(rewardId).select { chat eq message.chat.id.chatId }.map { it[rewardId] }
+        val fetchedRewardsByCampaign = newSuspendedTransaction {
+            currentChat(message).load(Chat::rewardEntries).rewardEntries.map { it.rewardId }
         }.map { rewardId ->
             async { runCatching {
                 fetcher.fetchReward(rewardId)
@@ -427,7 +427,7 @@ class TelegramBot(
     }.joinToString("\n")
 
     private suspend inline fun localeForCurrentChat(message: WithChat) = localeForChat(message.chat.id.chatId)
-    private suspend inline fun localeForChat(chatId: Long) = newSuspendedTransaction(Config.dbContext) { localeForChat(chatId) }
+    private suspend inline fun localeForChat(chatId: Long) = newSuspendedTransaction { localeForChat(chatId) }
     private fun Transaction.localeForChat(chatId: Long) = Chat.findById(chatId)?.locale ?: defaultLocale
     private fun Transaction.currentChat(message: WithChat) = Chat[message.chat.id.chatId]
 }
