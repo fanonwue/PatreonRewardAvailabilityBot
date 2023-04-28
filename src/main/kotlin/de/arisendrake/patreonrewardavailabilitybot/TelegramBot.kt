@@ -11,6 +11,7 @@ import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries.reward
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.CampaignAttributes
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.Data
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.RewardsAttributes
+import dev.inmo.tgbotapi.abstracts.WithChat
 import dev.inmo.tgbotapi.extensions.api.bot.setMyCommands
 import dev.inmo.tgbotapi.extensions.api.edit.text.editMessageText
 import dev.inmo.tgbotapi.extensions.api.send.reply
@@ -26,6 +27,7 @@ import dev.inmo.tgbotapi.extensions.utils.fromUserMessageOrNull
 import dev.inmo.tgbotapi.types.BotCommand
 import dev.inmo.tgbotapi.types.message.MarkdownParseMode
 import dev.inmo.tgbotapi.types.message.abstracts.CommonMessage
+import dev.inmo.tgbotapi.types.message.abstracts.Message
 import dev.inmo.tgbotapi.types.message.content.TextContent
 import dev.inmo.tgbotapi.types.toChatId
 import io.ktor.client.*
@@ -287,7 +289,7 @@ class TelegramBot(
 
     }.join()
 
-    private suspend fun BehaviourContext.onListCommand(message: CommonMessage<TextContent>) = coroutineScope {
+    private suspend inline fun BehaviourContext.onListCommand(message: Message) = coroutineScope {
         val unavailableCampaigns = mutableMapOf<Long, UnavailabilityReason>()
         val unavailableRewards = mutableMapOf<Long, UnavailabilityReason>()
 
@@ -343,7 +345,7 @@ class TelegramBot(
         )
     }
 
-    private suspend fun BehaviourContext.onCampaignAddCommand(message: CommonMessage<TextContent>, args: Array<String>) = coroutineScope {
+    private suspend inline fun BehaviourContext.onCampaignAddCommand(message: Message, args: Array<String>) = coroutineScope {
         if (args.size != 1) {
             reply(message, "Exactly one argument (the campaign's ID) is expected")
             return@coroutineScope
@@ -415,9 +417,9 @@ class TelegramBot(
         """.trimIndent()
     }.joinToString("\n")
 
-    private suspend fun localeForCurrentChat(message: CommonMessage<*>) = localeForChat(message.chat.id.chatId)
-    private suspend fun localeForChat(chatId: Long) = newSuspendedTransaction(Config.dbContext) { localeForChat(chatId) }
+    private suspend inline fun localeForCurrentChat(message: WithChat) = localeForChat(message.chat.id.chatId)
+    private suspend inline fun localeForChat(chatId: Long) = newSuspendedTransaction(Config.dbContext) { localeForChat(chatId) }
     private fun Transaction.localeForChat(chatId: Long) = Chat.findById(chatId)?.locale ?: defaultLocale
-    private fun Transaction.currentChat(message: CommonMessage<*>) = Chat[message.chat.id.chatId]
+    private fun Transaction.currentChat(message: WithChat) = Chat[message.chat.id.chatId]
 }
 

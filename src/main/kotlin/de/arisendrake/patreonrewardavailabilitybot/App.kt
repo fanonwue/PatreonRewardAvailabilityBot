@@ -68,7 +68,7 @@ object App {
         }
     }
 
-    private suspend fun Transaction.doAvailabilityCheck(entry: RewardEntry) = suspendedTransaction {
+    private suspend inline fun Transaction.doAvailabilityCheck(entry: RewardEntry) = suspendedTransaction {
         logger.debug { "Checking reward availability for reward ${entry.id.value} (internal ID)" }
         runCatching {
             val result = fetcher.checkAvailability(entry.rewardId)
@@ -112,7 +112,7 @@ object App {
         }
     }
 
-    private suspend fun Transaction.onRewardAvailability(reward: Data<RewardsAttributes>) = suspendedTransaction {
+    private suspend inline fun Transaction.onRewardAvailability(reward: Data<RewardsAttributes>) = suspendedTransaction {
         RewardEntry.find { RewardEntries.rewardId eq reward.id }.firstOrNull()?.let { entry ->
             if (entry.availableSince == null) entry.availableSince = Instant.now()
             try {
