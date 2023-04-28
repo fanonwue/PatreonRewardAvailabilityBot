@@ -3,20 +3,24 @@ package de.arisendrake.patreonrewardavailabilitybot.model.db
 import de.arisendrake.patreonrewardavailabilitybot.Config
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.statements.StatementContext
-import org.jetbrains.exposed.sql.statements.expandArgs
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.sqlite.SQLiteDataSource
 import java.sql.Connection
+import javax.sql.DataSource
 
 object DbHelper {
+    val dataSource: DataSource by lazy {
+        SQLiteDataSource().apply {
+            url = "jdbc:sqlite:${Config.databasePath}"
+        }
+    }
     val db by lazy {
         val dbConfig = DatabaseConfig {
             //useNestedTransactions = true
             defaultIsolationLevel = Connection.TRANSACTION_READ_UNCOMMITTED
         }
         Database.connect(
-            "jdbc:sqlite:${Config.databasePath}",
-            "org.sqlite.JDBC",
+            dataSource,
             databaseConfig = dbConfig
         ).apply {
             transaction {
