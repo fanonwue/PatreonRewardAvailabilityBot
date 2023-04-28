@@ -21,7 +21,8 @@ class Chat(id: EntityID<Long>) : LongEntity(id) {
      */
     private var language by Chats.language
 
-    var locale get() = Locale.forLanguageTag(language)
+    var locale: Locale
+        get() = Locale.forLanguageTag(language)
         set(value) {
             language = value.isO3Language
         }

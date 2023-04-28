@@ -1,7 +1,6 @@
 package de.arisendrake.patreonrewardavailabilitybot.model.db
 
 import org.jetbrains.exposed.dao.id.IdTable
-import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.javatime.CurrentTimestamp
 import org.jetbrains.exposed.sql.javatime.timestamp
 import java.util.*
