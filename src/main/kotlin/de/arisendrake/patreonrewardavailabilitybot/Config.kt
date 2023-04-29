@@ -78,6 +78,21 @@ object Config {
     val databasePath: Path
     by lazy { getValue("run.databasePath", DEFAULT_DATA_PATH) }
 
+    val useFetchCache: Boolean
+    by lazy { getValue("run.useFetchCache", true) }
+
+    val cacheValidity: Duration
+    by lazy { getValue("run.cacheValidity", 600) }
+
+    val cacheEvictionPeriod: Duration
+    by lazy { getValue("run.cacheEvictionPeriod", cacheValidity.seconds / 2) }
+
+    val cacheRewardsMaxSize: Int
+    by lazy { getValue("run.cacheRewardsMaxSize", 100) }
+
+    val cacheCampaignsMaxSize: Int
+    by lazy { getValue("run.cacheCampaignsMaxSize", cacheRewardsMaxSize) }
+
     private inline fun <reified T, reified R> getValue(key: String, default: R) = let {
         val value = configStore.getProperty(key, when (R::class) {
             Duration::class -> (default as Duration).seconds.toString()

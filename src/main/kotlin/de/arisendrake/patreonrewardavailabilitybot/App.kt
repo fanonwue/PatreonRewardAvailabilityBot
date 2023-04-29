@@ -44,6 +44,13 @@ object App {
         logger.info { "Starting Telegram Bot" }
         scope.launch { notificationTelegramBot.start() }
 
+        if (Config.useFetchCache) {
+            logger.info { "Starting cache eviction background job, cache validity is at ${Config.cacheValidity.seconds} seconds" }
+            fetcher.startCacheEviction(context)
+        } else {
+            logger.info { "Fetch cache disabled globally, skipping eviction job scheduling" }
+        }
+
         logger.info {"""
             Starting coroutine scheduler with an interval of ${Config.interval.toSeconds()}s and with an initial
             delay of ${Config.initialDelay.toSeconds()}s
