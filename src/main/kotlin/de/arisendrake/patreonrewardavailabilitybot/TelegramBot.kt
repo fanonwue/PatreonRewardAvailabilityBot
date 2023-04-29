@@ -323,10 +323,10 @@ class TelegramBot(
         } }.awaitAll().filterNotNull().associateBy { it.id }
 
 
-        val groupedRewardsByCampaign = fetchedCampaignsById.map {
-            val rewards = fetchedRewardsByCampaign[it.key] ?: return@map null
+        val groupedRewardsByCampaign = fetchedCampaignsById.mapNotNull {
+            val rewards = fetchedRewardsByCampaign[it.key] ?: return@mapNotNull null
             it.value to rewards
-        }.filterNotNull().sortedBy { it.first.attributes.name }
+        }.sortedBy { it.first.attributes.name }
 
         val locale = localeForCurrentChat(message)
 

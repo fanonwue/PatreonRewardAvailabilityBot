@@ -53,7 +53,7 @@ object App {
         runBlocking(context) {
             delay(Config.initialDelay)
             while (isActive) {
-                logger.info { "Checking reward availability" }
+                logger.info { "Checking reward availability..." }
 
 
                 val availableRewards = newSuspendedTransaction {
@@ -62,7 +62,7 @@ object App {
                     }.awaitAll().filterNotNull()
                 }
 
-                logger.info { "${availableRewards.size} available rewards found" }
+                logger.debug { "${availableRewards.size} available rewards found" }
                 delay(Config.interval)
             }
         }
