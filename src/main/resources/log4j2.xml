@@ -1,13 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="INFO">
+    <Properties>
+        <Property name="textPattern">%-5level [%15.15t] %d{yyyy-MM-dd HH:mm:ss.SSS} :: %logger{1.} - %msg%n</Property>
+        <Property name="logPath">${env:LOG_PATH:-data/}</Property>
+    </Properties>
     <Appenders>
-        <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="%-5level [%15.15t] %d{yyyy-MM-dd HH:mm:ss.SSS} :: %logger{1.} - %msg%n" />
+        <Console name="console" target="SYSTEM_OUT">
+            <PatternLayout pattern="${textPattern}" />
         </Console>
+        <RollingFile name="file" fileName="${logPath}/app.log" filePattern="${logPath}/app-%i.log.gz">
+            <PatternLayout pattern="${textPattern}" />
+            <Policies>
+                <SizeBasedTriggeringPolicy size="1.5 MB" />
+            </Policies>
+            <DefaultRolloverStrategy max="5"/>
+        </RollingFile>
     </Appenders>
     <Loggers>
         <Root level="${env:LOG_LEVEL:-INFO}">
-            <AppenderRef ref="Console" />
+            <AppenderRef ref="console" />
+            <AppenderRef ref="file" />
         </Root>
     </Loggers>
 </Configuration>
