@@ -270,8 +270,18 @@ class TelegramBot(
 
         onCommand(BotCommand("start",
             "Start interaction with bot"
-        ).apply(addToCommandList), initialFilter = messageFilterCreatorOnly) {
+        ).apply(addToCommandList)) {
             val chatId = it.chat.id.chatId
+
+            if (chatId != creatorId.chatId) {
+                reply(it, """
+                    Sorry, this bot is currently not available to the public.
+                    If you are interested in using it, contact this bot's creator!
+                    (See bio for contact info ❤️)
+                """.trimIndent())
+                return@onCommand
+            }
+
             val newlyCreated = newSuspendedTransaction(Config.dbContext) {
                 Chat.findById(chatId)?.let { false } ?: Chat.new(chatId) {  }.let { true }
             }
