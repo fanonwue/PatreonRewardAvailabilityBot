@@ -273,7 +273,7 @@ class TelegramBot(
         ).apply(addToCommandList)) {
             val chatId = it.chat.id.chatId
 
-            if (chatId != creatorId.chatId) {
+            if (Config.creatorOnlyAccess && chatId != creatorId.chatId) {
                 reply(it, """
                     Sorry, this bot is currently not available to the public.
                     If you are interested in using it, contact this bot's creator!

@@ -63,6 +63,9 @@ object Config {
     val telegramCreatorId: Long
     by lazy { getValue("telegram.creatorId", 0L) }
 
+    val creatorOnlyAccess: Boolean
+    by lazy { getValue("telegram.creatorOnlyAccess", true) }
+
     val telegramApiKey: String
     by lazy { getValue("telegram.api.key", "") }
 
