@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
 import java.net.URI
 import java.text.DecimalFormat
 import java.text.NumberFormat
-import java.util.Locale
+import java.util.*
 
 @Serializable
 data class RewardsAttributes(
@@ -24,9 +24,15 @@ data class RewardsAttributes(
 
     val formattedAmount get() = formattedAmount()
 
-    fun formattedAmount(locale: Locale = Config.defaultLocale) : String {
-        val formatter = NumberFormat.getNumberInstance(locale) as DecimalFormat
-        formatter.maximumFractionDigits = 2
-        return formatter.format(amount.toDouble() / 100)
+    val amountDecimal get() = amountCents.toDouble() / 100
+
+    fun formattedAmount(locale: Locale = Config.defaultLocale) = (NumberFormat.getNumberInstance(locale) as DecimalFormat).let {
+        it.maximumFractionDigits = 2
+        it.format(amountDecimal)
+    }
+
+    fun formattedAmountCurrency(locale: Locale = Config.defaultLocale) = NumberFormat.getCurrencyInstance(locale).let {
+        it.currency = currency
+        it.format(amountDecimal)
     }
 }

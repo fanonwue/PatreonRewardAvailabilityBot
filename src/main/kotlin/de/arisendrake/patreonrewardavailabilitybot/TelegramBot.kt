@@ -77,7 +77,7 @@ class TelegramBot(
                 Name: 
                 *${ra.title}*
                 Cost: 
-                *${ra.formattedAmount(locale)} ${ra.currency.currencyCode}*
+                *${ra.formattedAmountCurrency(locale)}*
                 ID:
                 ${reward.id}
                 
@@ -250,13 +250,13 @@ class TelegramBot(
             }
 
             if (args.size != 1) {
-                reply(message, "Exactly one argument (an ISO 639 language code) is expected")
+                reply(message, "Exactly one argument (an IETF BCP 47 language code) is expected")
                 return@onCommandWithArgs
             }
 
             val code = args.first().trim()
-            if (code.length < 2 || code.length > 3) {
-                reply(message, "An ISO 639 language code must be 2 or 3 characters long")
+            if (code.length != 2) {
+                reply(message, "An IETF BCP 47 language tag must be 2 characters long")
                 return@onCommandWithArgs
             }
 
@@ -397,7 +397,7 @@ class TelegramBot(
         val stringifiedRewardData = rewardData.map {
             val attributes = it.attributes
             """
-                *${attributes.title}* for ${attributes.formattedAmount(locale)} ${attributes.currency.currencyCode}
+                *${attributes.title}* for ${attributes.formattedAmountCurrency(locale)}
                 ID: *${it.id}*
             """.trimIndent()
         }
@@ -421,7 +421,7 @@ class TelegramBot(
         val campaignString = "[${ca.name}](${ca.url})\n"
         val rewardLines = rewards.map {
             val ra = it.attributes
-            "*${ra.title}* / ${ra.formattedAmount(locale)} ${ra.currency.currencyCode}\n(ID ${it.id})"
+            "*${ra.title}* / ${ra.formattedAmountCurrency(locale)}\n(ID ${it.id})"
         }
 
         val joinedRewardLine = if (rewardLines.isEmpty()) "No rewards found for this campaign (how does this happen???)"

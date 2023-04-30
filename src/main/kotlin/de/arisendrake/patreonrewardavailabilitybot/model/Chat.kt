@@ -25,7 +25,7 @@ class Chat(id: EntityID<Long>) : LongEntity(id) {
     var locale: Locale
         get() = Locale.forLanguageTag(language)
         set(value) {
-            language = value.isO3Language
+            language = value.language
         }
 
     val rewardEntries by RewardEntry referrersOn RewardEntries.chat
