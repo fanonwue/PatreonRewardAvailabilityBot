@@ -121,8 +121,8 @@ class TelegramBot(
             }
             
             newSuspendedTransaction(Config.dbContext) {
-                // Preload current chat with rewardEntries already loaded to avoid N+1 problem
-                val currentChat = currentChat(message).load(Chat::rewardEntries)
+                // Preload current chat with rewardEntries already loaded to avoid N+1 problemmess
+                val currentChat = currentChatWithRewardEntries(message)
                 val currentRewardIds = currentChat.rewardEntries.map { it.rewardId }
                 val uniqueNewIds = rewardIds.filter { it !in currentRewardIds }
 
@@ -197,7 +197,7 @@ class TelegramBot(
 
             val removedRewardIds = newSuspendedTransaction(Config.dbContext) {
                 // Preload
-                val currentChat = currentChat(message).load(Chat::rewardEntries)
+                val currentChat = currentChatWithRewardEntries(message)
                 val rewardEntriesToRemove = currentChat.rewardEntries.filter {
                     it.rewardId in rewardIds
                 }
@@ -313,7 +313,7 @@ class TelegramBot(
         val unavailableRewards = mutableMapOf<Long, UnavailabilityReason>()
 
         val fetchedRewardsByCampaign = newSuspendedTransaction {
-            currentChat(message).load(Chat::rewardEntries).rewardEntries.map { it.rewardId }
+            currentChatWithRewardEntries(message).rewardEntries.map { it.rewardId }
         }.map { rewardId ->
             async { runCatching {
                 fetcher.fetchReward(rewardId)
@@ -440,5 +440,6 @@ class TelegramBot(
     private suspend inline fun localeForChat(chatId: Long) = newSuspendedTransaction { localeForChat(chatId) }
     private fun Transaction.localeForChat(chatId: Long) = Chat.findById(chatId)?.locale ?: defaultLocale
     private fun Transaction.currentChat(message: WithChat) = Chat[message.chat.id.chatId]
+    private fun Transaction.currentChatWithRewardEntries(message: WithChat) = currentChat(message).loadRewardEntries()
 }
 

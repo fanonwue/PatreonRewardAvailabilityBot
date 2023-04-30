@@ -5,6 +5,7 @@ import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries
 import org.jetbrains.exposed.dao.LongEntity
 import org.jetbrains.exposed.dao.LongEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
+import org.jetbrains.exposed.dao.load
 import java.util.Locale
 
 class Chat(id: EntityID<Long>) : LongEntity(id) {
@@ -28,4 +29,6 @@ class Chat(id: EntityID<Long>) : LongEntity(id) {
         }
 
     val rewardEntries by RewardEntry referrersOn RewardEntries.chat
+
+    fun loadRewardEntries() = this.load(Chat::rewardEntries)
 }
