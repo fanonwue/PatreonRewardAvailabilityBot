@@ -42,30 +42,29 @@ object App {
         DbHelper.db
 
         logger.info { "Starting Telegram Bot" }
-        scope.launch { notificationTelegramBot.start() }
+        notificationTelegramBot.start()
 
         if (Config.useFetchCache) {
-            logger.info { "Starting cache eviction background job, cache validity is at ${Config.cacheValidity.seconds} seconds" }
-            fetcher.startCacheEviction(context)
+            logger.info { "Starting cache eviction background job, cache validity is at ${Config.cacheValidity.seconds}s" }
+            fetcher.startCacheEviction()
         } else {
             logger.info { "Fetch cache disabled globally, skipping eviction job scheduling" }
         }
 
         logger.info {"""
-            Starting coroutine scheduler with an interval of ${Config.interval.toSeconds()}s and with an initial
-            delay of ${Config.initialDelay.toSeconds()}s
+            Starting coroutine scheduler with an interval of ${Config.interval.seconds}s and with an initial
+            delay of ${Config.initialDelay.seconds}s
         """.trimIndent().withoutNewlines()
         }
 
-        runBlocking(context) {
+        runBlocking {
             delay(Config.initialDelay)
             while (isActive) {
                 logger.info { "Checking reward availability..." }
 
-
-                val availableRewards = newSuspendedTransaction {
+                val availableRewards = newSuspendedTransaction(Config.dbContext) {
                     RewardEntry.all().map {
-                        async { doAvailabilityCheck(it) }
+                        async(context) { doAvailabilityCheck(it) }
                     }.awaitAll().filterNotNull()
                 }
 

@@ -39,6 +39,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import java.util.*
+import kotlin.coroutines.CoroutineContext
 
 class TelegramBot(
     apiKey: String,
@@ -105,8 +106,10 @@ class TelegramBot(
         chatId.toChatId(),
         "WARNING: Access to reward with ID ${entry.rewardId} is forbidden. It may have been removed."
     )
+
+    fun start(context: CoroutineContext = Dispatchers.IO) = CoroutineScope(context).launch { startInternal(this) }
     
-    suspend fun start() = bot.buildBehaviourWithLongPolling(timeoutSeconds = 60) {
+    private suspend fun startInternal(scope: CoroutineScope) = bot.buildBehaviourWithLongPolling(scope, timeoutSeconds = 60) {
         val botCommandList = mutableListOf<BotCommand>()
         val addToCommandList: BotCommand.() -> Unit = { botCommandList.add(this) }
 
