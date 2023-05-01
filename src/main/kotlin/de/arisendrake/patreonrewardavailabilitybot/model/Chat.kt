@@ -20,13 +20,10 @@ class Chat(id: EntityID<Long>) : LongEntity(id) {
     /**
      * 3-letter locale code
      */
-    private var language by Chats.language
-
-    var locale: Locale
-        get() = Locale.forLanguageTag(language)
-        set(value) {
-            language = value.language
-        }
+    var locale: Locale by Chats.language.transform(
+        { it.language },
+        { Locale.forLanguageTag(it) }
+    )
 
     val rewardEntries by RewardEntry referrersOn RewardEntries.chat
 
