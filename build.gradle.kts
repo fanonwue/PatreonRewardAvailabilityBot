@@ -41,22 +41,15 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter", "junit-jupiter-engine")
 }
 
-tasks.getByName<Test>("test") {
-    useJUnitPlatform()
+kotlin {
+    jvmToolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
 }
-
 
 tasks {
     named<Test>("test") {
         useJUnitPlatform()
-    }
-
-    named<Jar>("jar") {
-        manifest {
-            attributes(
-                "Main-Class" to "de.arisendrake.patreonrewardavailabilitybot.MainKt"
-            )
-        }
     }
 
     named<ShadowJar>("shadowJar"){
