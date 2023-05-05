@@ -54,8 +54,7 @@ tasks {
     named<Jar>("jar") {
         manifest {
             attributes(
-                "Main-Class" to "de.arisendrake.patreonrewardavailabilitybot.MainKt",
-                "Multi-Release" to true
+                "Main-Class" to "de.arisendrake.patreonrewardavailabilitybot.MainKt"
             )
         }
     }
