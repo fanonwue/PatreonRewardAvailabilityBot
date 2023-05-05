@@ -47,18 +47,25 @@ kotlin {
     }
 }
 
+application {
+    mainClass.set("de.arisendrake.patreonrewardavailabilitybot.MainKt")
+}
+
 tasks {
     named<Test>("test") {
         useJUnitPlatform()
+    }
+
+    named<Jar>("jar") {
+        manifest {
+            // Log4j2 requires this for better performance
+            // https://issues.apache.org/jira/browse/LOG4J2-2537
+            attributes["Multi-Release"] = true
+        }
     }
 
     named<ShadowJar>("shadowJar"){
         mergeServiceFiles()
         archiveFileName.set("patreon-availability-bot.jar")
     }
-}
-
-
-application {
-    mainClass.set("de.arisendrake.patreonrewardavailabilitybot.MainKt")
 }
