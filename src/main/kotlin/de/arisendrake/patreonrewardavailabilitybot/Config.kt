@@ -97,7 +97,7 @@ object Config {
     by lazy { getValue("run.cacheCampaignsMaxSize", cacheRewardsMaxSize) }
 
     private inline fun <reified T, reified R> getValue(key: String, default: R) = let {
-        val value = configStore.getProperty(key, when (R::class) {
+        val value = System.getenv(configKeyToEnvKey(key)) ?: configStore.getProperty(key, when (R::class) {
             Duration::class -> (default as Duration).seconds.toString()
             Instant::class -> (default as Instant).toEpochMilli().toString()
             else -> default.toString()
@@ -118,4 +118,8 @@ object Config {
             else -> throw IllegalArgumentException("Type ${T::class} is not supported")
         } as T
     }
+
+    private fun configKeyToEnvKey(key: String) = key
+        .replace('.', '_')
+        .camelToScreamingSnakeCase()
 }
