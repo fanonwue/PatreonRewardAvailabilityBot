@@ -20,12 +20,10 @@ object Config {
 
     val charset = Charsets.UTF_8
 
-    val configStore by lazy {
+    private val configStore by lazy {
         Properties().apply {
             Paths.get(
-                System.getenv("CONFIG_PATH").let {
-                    if (it.isNullOrBlank()) DEFAULT_CONFIG_PATH else it
-                }
+                System.getenv("CONFIG_PATH")?.takeIf { it.isNotBlank() } ?: DEFAULT_CONFIG_PATH
             ).bufferedReader(charset).use {
                 load(it)
             }
@@ -45,7 +43,7 @@ object Config {
         }
     }
 
-    val defaultLocale = Locale.ENGLISH
+    val defaultLocale: Locale = Locale.ENGLISH
 
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -97,6 +95,9 @@ object Config {
     by lazy { getValue("run.cacheCampaignsMaxSize", cacheRewardsMaxSize) }
 
     private inline fun <reified T, reified R> getValue(key: String, default: R) = let {
+        // Environment variables take precedence over any config file. If the corresponding env variable is not set,
+        // this will fall back to reading from the config file. If it doesn't exist there either, the provided
+        // default value will be used.
         val value = System.getenv(configKeyToEnvKey(key)) ?: configStore.getProperty(key, when (R::class) {
             Duration::class -> (default as Duration).seconds.toString()
             Instant::class -> (default as Instant).toEpochMilli().toString()
