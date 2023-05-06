@@ -53,6 +53,11 @@ class TelegramBot(
         private val defaultLocale = Config.defaultLocale
     }
 
+    init {
+        logger.debug { "Using API Key '$apiKey'" }
+        logger.debug { "Creator ID is ${Config.telegramCreatorId}" }
+    }
+
     private val bot = telegramBot(
         apiKey,
         client = httpClient
