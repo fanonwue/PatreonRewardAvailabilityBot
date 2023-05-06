@@ -12,7 +12,7 @@ import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.time.delay
-import mu.KotlinLogging
+import io.github.oshai.KotlinLogging
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext

@@ -31,10 +31,9 @@ dependencies {
 
     implementation("org.xerial", "sqlite-jdbc", "3.41.2.1")
 
-
     implementation("dev.inmo", "tgbotapi", "7.1.0")
 
-    implementation("io.github.microutils", "kotlin-logging-jvm", "3.0.5")
+    implementation("io.github.oshai", "kotlin-logging-jvm", "4.0.0-beta-28")
     implementation("org.apache.logging.log4j", "log4j-slf4j2-impl", "2.20.0")
 
     testImplementation("org.junit.jupiter", "junit-jupiter-api", "5.9.2")

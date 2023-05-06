@@ -11,7 +11,7 @@ import de.arisendrake.patreonrewardavailabilitybot.model.patreon.RewardsAttribut
 import de.arisendrake.patreonrewardavailabilitybot.model.serializers.InstantSerializer
 import kotlinx.coroutines.*
 import kotlinx.coroutines.time.delay
-import mu.KotlinLogging
+import io.github.oshai.KotlinLogging
 import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.transactions.experimental.suspendedTransaction
