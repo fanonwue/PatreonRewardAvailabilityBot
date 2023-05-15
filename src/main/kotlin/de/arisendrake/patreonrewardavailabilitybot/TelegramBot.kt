@@ -8,9 +8,7 @@ import de.arisendrake.patreonrewardavailabilitybot.model.RewardEntry
 import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries
 import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries.chat
 import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries.rewardId
-import de.arisendrake.patreonrewardavailabilitybot.model.patreon.CampaignAttributes
-import de.arisendrake.patreonrewardavailabilitybot.model.patreon.Data
-import de.arisendrake.patreonrewardavailabilitybot.model.patreon.RewardsAttributes
+import de.arisendrake.patreonrewardavailabilitybot.model.patreon.*
 import dev.inmo.tgbotapi.abstracts.WithChat
 import dev.inmo.tgbotapi.extensions.api.bot.setMyCommands
 import dev.inmo.tgbotapi.extensions.api.edit.text.editMessageText
@@ -69,8 +67,8 @@ class TelegramBot(
     
     suspend fun sendAvailabilityNotification(
         chatId: Long,
-        reward: Data<RewardsAttributes>,
-        campaign: Data<CampaignAttributes>
+        reward: RewardData,
+        campaign: CampaignData
     ) {
         bot.sendActionTyping(chatId.toChatId())
         val locale = localeForChat(chatId)
@@ -421,8 +419,8 @@ class TelegramBot(
 
 
     private fun formatForList(
-        campaign: Data<CampaignAttributes>,
-        rewards: Iterable<Data<RewardsAttributes>>,
+        campaign: CampaignData,
+        rewards: Iterable<RewardData>,
         locale: Locale = defaultLocale
     ) : String {
         val ca = campaign.attributes

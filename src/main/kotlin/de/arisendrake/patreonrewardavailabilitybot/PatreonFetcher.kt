@@ -1,10 +1,7 @@
 package de.arisendrake.patreonrewardavailabilitybot
 
 import de.arisendrake.patreonrewardavailabilitybot.exceptions.*
-import de.arisendrake.patreonrewardavailabilitybot.model.patreon.CampaignAttributes
-import de.arisendrake.patreonrewardavailabilitybot.model.patreon.Data
-import de.arisendrake.patreonrewardavailabilitybot.model.patreon.Response
-import de.arisendrake.patreonrewardavailabilitybot.model.patreon.RewardsAttributes
+import de.arisendrake.patreonrewardavailabilitybot.model.patreon.*
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
@@ -23,11 +20,11 @@ class PatreonFetcher(
     private val cacheValidity = Config.cacheValidity
     private val cacheEvictionPeriod = Config.cacheEvictionPeriod
     private val rewardsCacheStore = FetcherCacheStore(
-        ConcurrentHashMap<Long, Pair<Instant, Data<RewardsAttributes>>>(),
+        ConcurrentHashMap<Long, Pair<Instant, RewardData>>(),
         Config.cacheRewardsMaxSize
     )
     private val campaignsCacheStore = FetcherCacheStore(
-        ConcurrentHashMap<Long, Pair<Instant, Data<CampaignAttributes>>>(),
+        ConcurrentHashMap<Long, Pair<Instant, CampaignData>>(),
         Config.cacheCampaignsMaxSize
     )
     private val allowCache = Config.useFetchCache
@@ -87,7 +84,7 @@ class PatreonFetcher(
     }
 
     @Throws(RewardUnavailableException::class, RuntimeException::class)
-    suspend fun fetchReward(rewardId: Long, useCache: Boolean = true) : Data<RewardsAttributes> {
+    suspend fun fetchReward(rewardId: Long, useCache: Boolean = true) : RewardData {
         logger.debug { "Fetching reward $rewardId" }
         if (!this.allowCache) return fetchRewardInternal(rewardId).also {
             logger.trace { "Cache disabled globally, skipping" }
@@ -105,7 +102,7 @@ class PatreonFetcher(
     }
 
     @Throws(RewardUnavailableException::class, RuntimeException::class)
-    private suspend fun fetchRewardInternal(rewardId: Long) : Data<RewardsAttributes> {
+    private suspend fun fetchRewardInternal(rewardId: Long) : RewardData {
         val result = httpClient.get("$baseUri/rewards/$rewardId")
 
         if (result.status == HttpStatusCode.NotFound) throw RewardNotFoundException("Reward $rewardId gave 404 Not Found", rewardId)
@@ -116,7 +113,7 @@ class PatreonFetcher(
     }
 
     @Throws(CampaignUnavailableException::class, RuntimeException::class)
-    suspend fun fetchCampaign(campaignId: Long, useCache: Boolean = true) : Data<CampaignAttributes> {
+    suspend fun fetchCampaign(campaignId: Long, useCache: Boolean = true) : CampaignData {
         logger.debug { "Fetching campaign $campaignId" }
         if (!this.allowCache) return fetchCampaignInternal(campaignId).also {
             logger.trace { "Cache disabled globally, skipping" }
@@ -134,7 +131,7 @@ class PatreonFetcher(
     }
 
     @Throws(CampaignUnavailableException::class, RuntimeException::class)
-    private suspend fun fetchCampaignInternal(campaignId: Long) : Data<CampaignAttributes> {
+    private suspend fun fetchCampaignInternal(campaignId: Long) : CampaignData {
         val result = httpClient.get("$baseUri/campaigns/$campaignId")
 
         if (result.status == HttpStatusCode.NotFound) throw CampaignNotFoundException("Campaign $campaignId gave 404 Not Found", campaignId)

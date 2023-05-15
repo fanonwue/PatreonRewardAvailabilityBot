@@ -7,6 +7,7 @@ import de.arisendrake.patreonrewardavailabilitybot.model.RewardEntry
 import de.arisendrake.patreonrewardavailabilitybot.model.db.DbHelper
 import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.Data
+import de.arisendrake.patreonrewardavailabilitybot.model.patreon.RewardData
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.RewardsAttributes
 import de.arisendrake.patreonrewardavailabilitybot.model.serializers.InstantSerializer
 import kotlinx.coroutines.*
@@ -118,7 +119,7 @@ object App {
         }
     }
 
-    private suspend inline fun Transaction.onRewardAvailability(reward: Data<RewardsAttributes>) = suspendedTransaction {
+    private suspend inline fun Transaction.onRewardAvailability(reward: RewardData) = suspendedTransaction {
         RewardEntry.find { RewardEntries.rewardId eq reward.id }.firstOrNull()?.let { entry ->
             if (entry.availableSince == null) entry.availableSince = Instant.now()
             try {

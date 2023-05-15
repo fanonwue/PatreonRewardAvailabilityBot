@@ -8,3 +8,6 @@ data class Data <T> (
     val id: Long,
     val relationships: Relationships
 )
+
+typealias RewardData = Data<RewardsAttributes>
+typealias CampaignData = Data<CampaignAttributes>
