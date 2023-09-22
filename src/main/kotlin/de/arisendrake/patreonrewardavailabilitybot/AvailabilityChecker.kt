@@ -59,6 +59,7 @@ class AvailabilityChecker(
                 }
             }
         }.getOrElse {
+            var action: RewardAction? = null
             when (it) {
                 is RewardNotFoundException -> {
                     logger.warn { it.message ?: "Reward ${entry.id} not found" }
@@ -67,7 +68,7 @@ class AvailabilityChecker(
                         entry.delete()
                     } else if (Config.notifyOnMissingRewards && !entry.isMissing) {
                         logger.info { "Notifying user ${entry.chat.id.value} of missing reward ${entry.id}" }
-                        RewardAction(entry.chat.id.value, entry, RewardActionType.NOTIFY_MISSING)
+                        action = RewardAction(entry.chat.id.value, entry, RewardActionType.NOTIFY_MISSING)
                     }
                     entry.isMissing = true
                 }
@@ -75,13 +76,13 @@ class AvailabilityChecker(
                     logger.warn { it.message ?: "Access to reward ${entry.id} is forbidden" }
                     if (Config.notifyOnForbiddenRewards && !entry.isMissing) {
                         logger.info { "Notifying user ${entry.chat.id.value} of reward ${entry.id} with forbidden access" }
-                        RewardAction(entry.chat.id.value, entry, RewardActionType.NOTIFY_FORBIDDEN)
+                        action = RewardAction(entry.chat.id.value, entry, RewardActionType.NOTIFY_FORBIDDEN)
                     }
                     entry.isMissing = true
                 }
                 else -> logger.error(it) { "An Error occured!" }
             }
-            null
+            action
         }
     }
 
