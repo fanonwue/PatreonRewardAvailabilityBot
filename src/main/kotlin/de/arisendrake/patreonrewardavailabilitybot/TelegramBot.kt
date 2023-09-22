@@ -66,13 +66,24 @@ class TelegramBot(
     }
 
     // TODO implement correctly
-    suspend fun handleRewardActions(actions: Iterable<RewardAction>) {
-        actions.forEach {
+    suspend fun handleRewardActions(actions: Iterable<RewardAction>) = coroutineScope {
+        actions.map { async {
             when(it.actionType) {
                 RewardActionType.NOTIFY_AVAILABLE -> {
+                    AvailabilityChecker.logger.info {
+                        "Notification for the availability of reward ${it.rewardId} will be sent to chat ${it.chatId}"
+                    }
+                    val now = Instant.now()
                     sendAvailabilityNotification(it.chatId, it.rewardData!!, it.campaignData!!)
                     newSuspendedTransaction(Config.dbContext) {
-                        it.rewardEntry.lastNotified = Instant.now()
+                        it.rewardEntry.lastNotified = now
+                    }
+                    logger.info {
+                        "Notification for the availability of reward ${it.rewardId} sent at ${
+                            InstantSerializer.formatter.format(
+                                now
+                            )
+                        }"
                     }
 
                 }
@@ -86,7 +97,7 @@ class TelegramBot(
                 )
                 else -> logger.debug { "Received action type ${it.actionType.name}, will be ignored by the bot" }
             }
-        }
+        } }.awaitAll()
     }
     
     suspend fun sendAvailabilityNotification(

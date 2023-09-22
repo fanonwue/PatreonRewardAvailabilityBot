@@ -30,12 +30,15 @@ class AvailabilityChecker(
     fun check() = runBlocking {
         logger.info { "Checking reward availability..." }
 
-        val availableRewards = newSuspendedTransaction(Config.dbContext) {
+        val rewardActions = newSuspendedTransaction(Config.dbContext) {
             RewardEntry.all().map {
                 async { doAvailabilityCheck(it) }
             }.awaitAll().filterNotNull()
         }
 
+        bot.handleRewardActions(rewardActions)
+
+        val availableRewards = rewardActions.filter { it.actionType == RewardActionType.NOTIFY_AVAILABLE }
         logger.debug { "${availableRewards.size} available rewards found" }
     }
 
@@ -49,7 +52,6 @@ class AvailabilityChecker(
                 if (remainingCount > 0) {
                     logger.debug { "$remainingCount slots for available for reward $entry" }
                     onRewardAvailability(result.second)
-                    entry
                 } else {
                     entry.lastNotified = null
                     entry.availableSince = null
@@ -65,8 +67,7 @@ class AvailabilityChecker(
                         entry.delete()
                     } else if (Config.notifyOnMissingRewards && !entry.isMissing) {
                         logger.info { "Notifying user ${entry.chat.id.value} of missing reward ${entry.id}" }
-                        //RewardAction(entry.chat.id.value, entry, RewardActionType.NOTIFY_MISSING)
-                        bot.sendMissingRewardNotification(entry)
+                        RewardAction(entry.chat.id.value, entry, RewardActionType.NOTIFY_MISSING)
                     }
                     entry.isMissing = true
                 }
@@ -74,8 +75,7 @@ class AvailabilityChecker(
                     logger.warn { it.message ?: "Access to reward ${entry.id} is forbidden" }
                     if (Config.notifyOnForbiddenRewards && !entry.isMissing) {
                         logger.info { "Notifying user ${entry.chat.id.value} of reward ${entry.id} with forbidden access" }
-                        //RewardAction(entry.chat.id.value, entry, RewardActionType.NOTIFY_FORBIDDEN)
-                        bot.sendForbiddenRewardNotification(entry)
+                        RewardAction(entry.chat.id.value, entry, RewardActionType.NOTIFY_FORBIDDEN)
                     }
                     entry.isMissing = true
                 }
@@ -90,25 +90,13 @@ class AvailabilityChecker(
             if (entry.availableSince == null) entry.availableSince = Instant.now()
             try {
                 if (entry.lastNotified == null || entry.availableSince!!.isAfter(entry.lastNotified)) {
-//                    return@withSuspendTransaction RewardAction(
-//                        entry.chat.id.value,
-//                        entry,
-//                        RewardActionType.NOTIFY_AVAILABLE,
-//                        reward,
-//                        fetcher.fetchCampaign(reward)
-//                    )
-                    logger.info {
-                        "Notification for the availability of reward ${entry.id} will be sent to chat ${entry.chat.id.value}"
-                    }
-                    bot.sendAvailabilityNotification(entry.chat.id.value, reward, fetcher.fetchCampaign(reward))
-                    entry.lastNotified = Instant.now()
-                    logger.info {
-                        "Notification for the availability of reward ${entry.id} sent at ${
-                            InstantSerializer.formatter.format(
-                                entry.lastNotified
-                            )
-                        }"
-                    }
+                    return@withSuspendTransaction RewardAction(
+                        entry.chat.id.value,
+                        entry,
+                        RewardActionType.NOTIFY_AVAILABLE,
+                        reward,
+                        fetcher.fetchCampaign(reward)
+                    )
                 } else {
                     logger.info { "Notification for the availability of reward ${entry.id} has been sent already. Skipping." }
                 }
@@ -119,6 +107,8 @@ class AvailabilityChecker(
                 logger.error(t) { "An Error occured!" }
             }
         } ?: logger.warn { "No RewardEntry found for rewardId ${reward.id}" }
+
+        null
     }
 
 }
