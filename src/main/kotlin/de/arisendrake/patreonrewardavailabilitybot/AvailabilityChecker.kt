@@ -8,7 +8,7 @@ import de.arisendrake.patreonrewardavailabilitybot.model.RewardActionType
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardEntry
 import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.RewardData
-import io.github.oshai.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction

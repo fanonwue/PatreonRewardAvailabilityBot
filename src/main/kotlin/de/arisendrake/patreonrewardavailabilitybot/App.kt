@@ -3,7 +3,7 @@ package de.arisendrake.patreonrewardavailabilitybot
 import de.arisendrake.patreonrewardavailabilitybot.model.db.DbHelper
 import kotlinx.coroutines.*
 import kotlinx.coroutines.time.delay
-import io.github.oshai.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 object App {
 
