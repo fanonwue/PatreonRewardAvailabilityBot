@@ -4,11 +4,13 @@ import de.arisendrake.patreonrewardavailabilitybot.exceptions.CampaignUnavailabl
 import de.arisendrake.patreonrewardavailabilitybot.exceptions.RewardUnavailableException
 import de.arisendrake.patreonrewardavailabilitybot.exceptions.UnavailabilityReason
 import de.arisendrake.patreonrewardavailabilitybot.model.Chat
+import de.arisendrake.patreonrewardavailabilitybot.model.RewardAction
+import de.arisendrake.patreonrewardavailabilitybot.model.RewardActionType
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardEntry
 import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries
 import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries.chat
-import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries.rewardId
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.*
+import de.arisendrake.patreonrewardavailabilitybot.model.serializers.InstantSerializer
 import dev.inmo.tgbotapi.abstracts.WithChat
 import dev.inmo.tgbotapi.extensions.api.bot.setMyCommands
 import dev.inmo.tgbotapi.extensions.api.edit.text.editMessageText
@@ -24,18 +26,16 @@ import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onComman
 import dev.inmo.tgbotapi.extensions.utils.fromUserMessageOrNull
 import dev.inmo.tgbotapi.types.BotCommand
 import dev.inmo.tgbotapi.types.message.MarkdownParseMode
-import dev.inmo.tgbotapi.types.message.abstracts.CommonMessage
 import dev.inmo.tgbotapi.types.message.abstracts.Message
-import dev.inmo.tgbotapi.types.message.content.TextContent
 import dev.inmo.tgbotapi.types.toChatId
 import io.ktor.client.*
 import kotlinx.coroutines.*
 import io.github.oshai.KotlinLogging
-import org.jetbrains.exposed.dao.load
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import java.time.Instant
 import java.util.*
 import kotlin.coroutines.CoroutineContext
 
@@ -64,6 +64,29 @@ class TelegramBot(
     private val messageFilterCreatorOnly = CommonMessageFilter<Any> {
         it.chat.id == creatorId
     }
+
+    suspend fun handleRewardActions(actions: Iterable<RewardAction>) {
+        actions.forEach {
+            when(it.actionType) {
+                RewardActionType.NOTIFY_AVAILABLE -> {
+                    sendAvailabilityNotification(it.chatId, it.rewardData!!, it.campaignData!!)
+                    newSuspendedTransaction(Config.dbContext) {
+                        it.rewardEntry.lastNotified = Instant.now()
+                    }
+
+                }
+                RewardActionType.NOTIFY_MISSING -> sendMissingRewardNotification(
+                    it.chatId,
+                    it.rewardId
+                )
+                RewardActionType.NOTIFY_FORBIDDEN -> sendForbiddenRewardNotification(
+                    it.chatId,
+                    it.rewardId
+                )
+                else -> logger.debug { "Received action type ${it.actionType.name}, will be ignored by the bot" }
+            }
+        }
+    }
     
     suspend fun sendAvailabilityNotification(
         chatId: Long,
@@ -91,23 +114,23 @@ class TelegramBot(
     }
 
     suspend fun sendMissingRewardNotification(entry: RewardEntry) = newSuspendedTransaction {
-        sendMissingRewardNotification(entry.chat.id.value, entry)
+        sendMissingRewardNotification(entry.chat.id.value, entry.rewardId)
     }
 
     @SuppressWarnings("WeakerAccess")
-    suspend fun sendMissingRewardNotification(chatId: Long, entry: RewardEntry) = bot.sendTextMessage(
+    suspend fun sendMissingRewardNotification(chatId: Long, rewardId: Long) = bot.sendTextMessage(
         chatId.toChatId(),
-        "WARNING: Reward with ID ${entry.rewardId} could not be found. It may have been removed."
+        "WARNING: Reward with ID ${rewardId} could not be found. It may have been removed."
     )
 
     suspend fun sendForbiddenRewardNotification(entry: RewardEntry) = newSuspendedTransaction {
-        sendForbiddenRewardNotification(entry.chat.id.value, entry)
+        sendForbiddenRewardNotification(entry.chat.id.value, entry.rewardId)
     }
 
     @SuppressWarnings("WeakerAccess")
-    suspend fun sendForbiddenRewardNotification(chatId: Long, entry: RewardEntry) = bot.sendTextMessage(
+    suspend fun sendForbiddenRewardNotification(chatId: Long, rewardId: Long) = bot.sendTextMessage(
         chatId.toChatId(),
-        "WARNING: Access to reward with ID ${entry.rewardId} is forbidden. It may have been removed."
+        "WARNING: Access to reward with ID ${rewardId} is forbidden. It may have been removed."
     )
 
     fun start(context: CoroutineContext = Dispatchers.IO) = CoroutineScope(context).launch { startInternal(this) }

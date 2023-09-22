@@ -23,7 +23,7 @@ object Config {
     private val configStore by lazy {
         Properties().apply {
             Paths.get(
-                System.getenv("CONFIG_PATH")?.takeIf { it.isNotBlank() } ?: DEFAULT_CONFIG_PATH
+                System.getenv("CONFIG_PATH")?.takeUnless { it.isBlank() } ?: DEFAULT_CONFIG_PATH
             ).bufferedReader(charset).use {
                 load(it)
             }
