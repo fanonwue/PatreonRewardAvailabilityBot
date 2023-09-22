@@ -8,6 +8,7 @@ import de.arisendrake.patreonrewardavailabilitybot.model.RewardActionType
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardEntry
 import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.RewardData
+import de.arisendrake.patreonrewardavailabilitybot.model.serializers.InstantSerializer
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import org.jetbrains.exposed.sql.Transaction
@@ -64,6 +65,7 @@ class AvailabilityChecker(
                         entry.delete()
                     } else if (Config.notifyOnMissingRewards && !entry.isMissing) {
                         logger.info { "Notifying user ${entry.chat.id.value} of missing reward ${entry.id}" }
+                        //RewardAction(entry.chat.id.value, entry, RewardActionType.NOTIFY_MISSING)
                         bot.sendMissingRewardNotification(entry)
                     }
                     entry.isMissing = true
@@ -72,7 +74,8 @@ class AvailabilityChecker(
                     logger.warn { it.message ?: "Access to reward ${entry.id} is forbidden" }
                     if (Config.notifyOnForbiddenRewards && !entry.isMissing) {
                         logger.info { "Notifying user ${entry.chat.id.value} of reward ${entry.id} with forbidden access" }
-                        RewardAction(entry.chat.id.value, entry, RewardActionType.NOTIFY_FORBIDDEN)
+                        //RewardAction(entry.chat.id.value, entry, RewardActionType.NOTIFY_FORBIDDEN)
+                        bot.sendForbiddenRewardNotification(entry)
                     }
                     entry.isMissing = true
                 }
@@ -87,16 +90,25 @@ class AvailabilityChecker(
             if (entry.availableSince == null) entry.availableSince = Instant.now()
             try {
                 if (entry.lastNotified == null || entry.availableSince!!.isAfter(entry.lastNotified)) {
+//                    return@withSuspendTransaction RewardAction(
+//                        entry.chat.id.value,
+//                        entry,
+//                        RewardActionType.NOTIFY_AVAILABLE,
+//                        reward,
+//                        fetcher.fetchCampaign(reward)
+//                    )
                     logger.info {
                         "Notification for the availability of reward ${entry.id} will be sent to chat ${entry.chat.id.value}"
                     }
-                    return@withSuspendTransaction RewardAction(
-                        entry.chat.id.value,
-                        entry,
-                        RewardActionType.NOTIFY_AVAILABLE,
-                        reward,
-                        fetcher.fetchCampaign(reward)
-                    )
+                    bot.sendAvailabilityNotification(entry.chat.id.value, reward, fetcher.fetchCampaign(reward))
+                    entry.lastNotified = Instant.now()
+                    logger.info {
+                        "Notification for the availability of reward ${entry.id} sent at ${
+                            InstantSerializer.formatter.format(
+                                entry.lastNotified
+                            )
+                        }"
+                    }
                 } else {
                     logger.info { "Notification for the availability of reward ${entry.id} has been sent already. Skipping." }
                 }
@@ -107,7 +119,6 @@ class AvailabilityChecker(
                 logger.error(t) { "An Error occured!" }
             }
         } ?: logger.warn { "No RewardEntry found for rewardId ${reward.id}" }
-        null
     }
 
 }

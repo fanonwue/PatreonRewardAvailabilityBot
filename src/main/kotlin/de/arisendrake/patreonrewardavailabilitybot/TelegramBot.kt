@@ -65,6 +65,7 @@ class TelegramBot(
         it.chat.id == creatorId
     }
 
+    // TODO implement correctly
     suspend fun handleRewardActions(actions: Iterable<RewardAction>) {
         actions.forEach {
             when(it.actionType) {
