@@ -39,7 +39,7 @@ class AvailabilityChecker(
         bot.handleRewardActions(rewardActions)
 
         val availableRewards = rewardActions.filter { it.actionType == RewardActionType.NOTIFY_AVAILABLE }
-        logger.debug { "${availableRewards.size} available rewards found" }
+        logger.info { "${availableRewards.size} available rewards found" }
     }
 
     private suspend inline fun Transaction.doAvailabilityCheck(entry: RewardEntry) = withSuspendTransaction {
