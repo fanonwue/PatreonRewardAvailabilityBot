@@ -31,9 +31,9 @@ class AvailabilityChecker(
         logger.info { "Checking reward availability..." }
 
         val rewardActions = newSuspendedTransaction(Config.dbContext) {
-            RewardEntry.all().map {
-                async { doAvailabilityCheck(it) }
-            }.awaitAll().filterNotNull()
+            RewardEntry.all().mapNotNull {
+                doAvailabilityCheck(it)
+            }
         }
 
         bot.handleRewardActions(rewardActions)
