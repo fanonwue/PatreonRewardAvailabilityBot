@@ -2,6 +2,7 @@ package de.arisendrake.patreonrewardavailabilitybot
 
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
+import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.*
@@ -30,15 +31,21 @@ object Config {
         }
     }
 
-    val jsonSerializer get() = Json {
-        ignoreUnknownKeys = true
-        isLenient = true
-    }
+    val jsonSerializer
+        get() = Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+        }
 
     val sharedHttpClient by lazy {
         HttpClient(CIO) {
             install(ContentNegotiation) {
                 json(jsonSerializer)
+            }
+
+            install(HttpTimeout) {
+                // 10 seconds request timeout
+                requestTimeoutMillis = 10 * 1000
             }
         }
     }
@@ -50,59 +57,61 @@ object Config {
     val dbContext: CoroutineContext = Dispatchers.IO.limitedParallelism(1)
 
     val removeMissingRewards: Boolean
-    by lazy { getValue("run.removeMissingRewards", false) }
+            by lazy { getValue("run.removeMissingRewards", false) }
 
     val notifyOnMissingRewards: Boolean
-    by lazy { getValue("run.notifyOnMissingRewards", true) }
+            by lazy { getValue("run.notifyOnMissingRewards", true) }
 
     val notifyOnForbiddenRewards: Boolean
-    by lazy { getValue("run.notifyOnForbiddenRewards", true) }
+            by lazy { getValue("run.notifyOnForbiddenRewards", true) }
 
     val telegramCreatorId: Long
-    by lazy { getValue("telegram.creatorId", 0L) }
+            by lazy { getValue("telegram.creatorId", 0L) }
 
     val creatorOnlyAccess: Boolean
-    by lazy { getValue("telegram.creatorOnlyAccess", true) }
+            by lazy { getValue("telegram.creatorOnlyAccess", true) }
 
     val telegramApiKey: String
-    by lazy { getValue("telegram.api.key", "") }
+            by lazy { getValue("telegram.api.key", "") }
 
     val interval: Duration
-    by lazy { getValue("run.interval", 300) }
+            by lazy { getValue("run.interval", 300) }
 
     val initialDelay: Duration
-    by lazy { getValue("run.initialDelay", 0) }
+            by lazy { getValue("run.initialDelay", 0) }
 
     val baseDomain: String
-    by lazy { getValue("baseDomain", "https://www.patreon.com") }
+            by lazy { getValue("baseDomain", "https://www.patreon.com") }
 
     val databasePath: Path
-    by lazy { getValue("run.databasePath", DEFAULT_DATA_PATH) }
+            by lazy { getValue("run.databasePath", DEFAULT_DATA_PATH) }
 
     val useFetchCache: Boolean
-    by lazy { getValue("run.useFetchCache", true) }
+            by lazy { getValue("run.useFetchCache", true) }
 
     val cacheValidity: Duration
-    by lazy { getValue("run.cacheValidity", 600) }
+            by lazy { getValue("run.cacheValidity", 600) }
 
     val cacheEvictionPeriod: Duration
-    by lazy { getValue("run.cacheEvictionPeriod", cacheValidity.seconds / 2) }
+            by lazy { getValue("run.cacheEvictionPeriod", cacheValidity.seconds / 2) }
 
     val cacheRewardsMaxSize: Int
-    by lazy { getValue("run.cacheRewardsMaxSize", 100) }
+            by lazy { getValue("run.cacheRewardsMaxSize", 100) }
 
     val cacheCampaignsMaxSize: Int
-    by lazy { getValue("run.cacheCampaignsMaxSize", cacheRewardsMaxSize) }
+            by lazy { getValue("run.cacheCampaignsMaxSize", cacheRewardsMaxSize) }
 
     private inline fun <reified T, reified R> getValue(key: String, default: R) = let {
         // Environment variables take precedence over any config file. If the corresponding env variable is not set,
         // this will fall back to reading from the config file. If it doesn't exist there either, the provided
         // default value will be used.
-        val value = System.getenv(configKeyToEnvKey(key)) ?: configStore.getProperty(key, when (R::class) {
-            Duration::class -> (default as Duration).seconds.toString()
-            Instant::class -> (default as Instant).toEpochMilli().toString()
-            else -> default.toString()
-        })
+        val value = System.getenv(configKeyToEnvKey(key)) ?: configStore.getProperty(
+            key, when (R::class) {
+                Duration::class -> (default as Duration).seconds.toString()
+                Instant::class -> (default as Instant).toEpochMilli().toString()
+                else -> default.toString()
+            }
+        )
 
         when (T::class) {
             String::class -> value
