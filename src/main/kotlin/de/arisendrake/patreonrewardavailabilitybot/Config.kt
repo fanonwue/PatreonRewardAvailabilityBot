@@ -5,7 +5,8 @@ import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.serialization.kotlinx.json.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.serialization.json.Json
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -41,6 +42,11 @@ object Config {
         HttpClient(CIO) {
             install(ContentNegotiation) {
                 json(jsonSerializer)
+            }
+
+            install(HttpRequestRetry) {
+                retryOnServerErrors(maxRetries = 3)
+                exponentialDelay()
             }
 
             install(HttpTimeout) {
