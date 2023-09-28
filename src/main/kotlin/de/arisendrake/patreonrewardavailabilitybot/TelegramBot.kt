@@ -68,36 +68,41 @@ class TelegramBot(
     // TODO implement correctly
     suspend fun handleRewardActions(actions: Iterable<RewardAction>) = coroutineScope {
         actions.map { async {
-            when(it.actionType) {
-                RewardActionType.NOTIFY_AVAILABLE -> {
-                    AvailabilityChecker.logger.info {
-                        "Notification for the availability of reward ${it.rewardId} will be sent to chat ${it.chatId}"
-                    }
-                    val now = Instant.now()
-                    sendAvailabilityNotification(it.chatId, it.rewardData!!, it.campaignData!!)
-                    newSuspendedTransaction(Config.dbContext) {
-                        it.rewardEntry.lastNotified = now
-                    }
-                    logger.info {
-                        "Notification for the availability of reward ${it.rewardId} sent at ${
-                            InstantSerializer.formatter.format(
-                                now
-                            )
-                        }"
-                    }
-
-                }
-                RewardActionType.NOTIFY_MISSING -> sendMissingRewardNotification(
-                    it.chatId,
-                    it.rewardId
-                )
-                RewardActionType.NOTIFY_FORBIDDEN -> sendForbiddenRewardNotification(
-                    it.chatId,
-                    it.rewardId
-                )
-                else -> logger.debug { "Received action type ${it.actionType.name}, will be ignored by the bot" }
-            }
+            handleRewardAction(it)
         } }.awaitAll()
+    }
+
+    suspend fun handleRewardAction(action: RewardAction) = coroutineScope {
+        logger.debug { "Handling action for reward ${action.rewardId} of type ${action.actionType}" }
+        when(action.actionType) {
+            RewardActionType.NOTIFY_AVAILABLE -> {
+                AvailabilityChecker.logger.info {
+                    "Notification for the availability of reward ${action.rewardId} will be sent to chat ${action.chatId}"
+                }
+                val now = Instant.now()
+                sendAvailabilityNotification(action.chatId, action.rewardData!!, action.campaignData!!)
+                newSuspendedTransaction(Config.dbContext) {
+                    action.rewardEntry.lastNotified = now
+                }
+                logger.info {
+                    "Notification for the availability of reward ${action.rewardId} sent at ${
+                        InstantSerializer.formatter.format(
+                            now
+                        )
+                    }"
+                }
+
+            }
+            RewardActionType.NOTIFY_MISSING -> sendMissingRewardNotification(
+                action.chatId,
+                action.rewardId
+            )
+            RewardActionType.NOTIFY_FORBIDDEN -> sendForbiddenRewardNotification(
+                action.chatId,
+                action.rewardId
+            )
+            else -> logger.debug { "Received action type ${action.actionType.name}, will be ignored by the bot" }
+        }
     }
     
     suspend fun sendAvailabilityNotification(

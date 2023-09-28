@@ -11,6 +11,7 @@ import de.arisendrake.patreonrewardavailabilitybot.model.patreon.RewardData
 import de.arisendrake.patreonrewardavailabilitybot.model.serializers.InstantSerializer
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.transactions.experimental.withSuspendTransaction
@@ -30,15 +31,24 @@ class AvailabilityChecker(
     fun check() = runBlocking {
         logger.info { "Checking reward availability..." }
 
-        val rewardActions = newSuspendedTransaction(Config.dbContext) {
-            RewardEntry.all().mapNotNull {
-                doAvailabilityCheck(it)
+        val availableRewards = channelFlow {
+            newSuspendedTransaction(Config.dbContext) {
+                RewardEntry.all().map { entry ->
+                    // Delay to not overwhelm Patreon
+                    delay(100)
+                    logger.debug { "Starting availability check for reward ${entry.rewardId}" }
+                    async { doAvailabilityCheck(entry).also {
+                        logger.debug { "Availability check resolved for reward ${entry.rewardId}" }
+                        send(it)
+                    } }
+                }.awaitAll()
             }
-        }
+            close()
+        }.filterNotNull()
+        .onEach { bot.handleRewardAction(it) }
+        .filter { it.actionType == RewardActionType.NOTIFY_AVAILABLE }
+        .toList()
 
-        bot.handleRewardActions(rewardActions)
-
-        val availableRewards = rewardActions.filter { it.actionType == RewardActionType.NOTIFY_AVAILABLE }
         logger.info { "${availableRewards.size} available rewards found" }
     }
 
