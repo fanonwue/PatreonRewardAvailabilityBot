@@ -350,16 +350,26 @@ class TelegramBot(
     }.join()
 
     private suspend inline fun BehaviourContext.onListCommand(message: Message) = coroutineScope {
+        val rewardErrors = mutableListOf<Long>()
+        val campaignErrors = mutableListOf<Long>()
         val unavailableCampaigns = mutableMapOf<Long, UnavailabilityReason>()
         val unavailableRewards = mutableMapOf<Long, UnavailabilityReason>()
 
-        val fetchedRewardsByCampaign = newSuspendedTransaction {
+        val fetchedRewardsByCampaign = newSuspendedTransaction(Config.dbContext) {
             currentChatWithRewardEntries(message).rewardEntries.map { it.rewardId }
         }.map { rewardId ->
             async { runCatching {
                 fetcher.fetchReward(rewardId)
             }.getOrElse { e ->
-                if (e is RewardUnavailableException) e.rewardId?.let { unavailableRewards[it] = e.unavailabilityReason }
+                when (e) {
+                    is RewardUnavailableException -> {
+                        e.rewardId?.let { unavailableRewards[it] = e.unavailabilityReason }
+                    }
+                    else -> {
+                        logger.error(e) { "Could not fetch reward: $rewardId" }
+                        rewardErrors.add(rewardId)
+                    }
+                }
                 null
             } }
         }.awaitAll().filterNotNull().sortedBy { it.attributes.amountCents }.groupBy { it.relationships.campaign!!.data.id }
@@ -368,7 +378,15 @@ class TelegramBot(
             runCatching {
                 fetcher.fetchCampaign(it)
             }.getOrElse { e ->
-                if (e is CampaignUnavailableException) e.campaignId?.let { unavailableCampaigns[it] = e.unavailabilityReason }
+                when (e) {
+                    is CampaignUnavailableException -> {
+                        e.campaignId?.let { unavailableCampaigns[it] = e.unavailabilityReason }
+                    }
+                    else -> {
+                        logger.error(e) { "Could not fetch campaign: $it" }
+                        campaignErrors.add(it)
+                    }
+                }
                 null
             }
         } }.awaitAll().filterNotNull().associateBy { it.id }
@@ -402,6 +420,16 @@ class TelegramBot(
         if (unavailableCampaigns.isNotEmpty()) sendTextMessage(
             message.chat.id,
             "The following campaigns are not available anymore:\n\n" + unavailableResourcesToString(unavailableCampaigns)
+        )
+
+        if (rewardErrors.isNotEmpty()) sendTextMessage(
+            message.chat.id,
+            "Error encountered fetching the following rewards:\n\n" + rewardErrors.joinToString(", ")
+        )
+
+        if (campaignErrors.isNotEmpty()) sendTextMessage(
+            message.chat.id,
+            "Error encountered fetching the following campaigns:\n\n" + campaignErrors.joinToString(", ")
         )
     }
 
