@@ -49,10 +49,7 @@ object Config {
                 exponentialDelay()
             }
 
-            install(HttpTimeout) {
-                // 10 seconds request timeout
-                requestTimeoutMillis = 10 * 1000
-            }
+            install(HttpTimeout)
         }
     }
 

@@ -10,6 +10,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.time.delay
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.client.plugins.*
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
@@ -17,6 +18,16 @@ import kotlin.coroutines.CoroutineContext
 class PatreonFetcher(
     private val httpClient: HttpClient
 ) {
+    companion object {
+        const val PATREON_REQUEST_TIMEOUT = 30L * 1000L
+        @JvmStatic
+        val logger = KotlinLogging.logger {}
+    }
+
+    private val patreonHttptimeout: HttpTimeout.HttpTimeoutCapabilityConfiguration.() -> Unit = {
+        requestTimeoutMillis = PATREON_REQUEST_TIMEOUT
+    }
+
     private val cacheValidity = Config.cacheValidity
     private val cacheEvictionPeriod = Config.cacheEvictionPeriod
     private val rewardsCacheStore = FetcherCacheStore(
@@ -28,11 +39,6 @@ class PatreonFetcher(
         Config.cacheCampaignsMaxSize
     )
     private val allowCache = Config.useFetchCache
-
-    companion object {
-        @JvmStatic
-        val logger = KotlinLogging.logger {}
-    }
 
     fun startCacheEviction(context: CoroutineContext = Dispatchers.Default) = CoroutineScope(context).launch {
         delay(cacheEvictionPeriod)
@@ -103,7 +109,9 @@ class PatreonFetcher(
 
     @Throws(RewardUnavailableException::class, RuntimeException::class)
     private suspend fun fetchRewardInternal(rewardId: Long) : RewardData {
-        val result = httpClient.get("$baseUri/rewards/$rewardId")
+        val result = httpClient.get("$baseUri/rewards/$rewardId") {
+            timeout(patreonHttptimeout)
+        }
 
         if (result.status == HttpStatusCode.NotFound) throw RewardNotFoundException("Reward $rewardId gave 404 Not Found", rewardId)
         if (result.status == HttpStatusCode.Forbidden) throw RewardForbiddenException("Access to reward $rewardId is forbidden", rewardId)
@@ -132,7 +140,9 @@ class PatreonFetcher(
 
     @Throws(CampaignUnavailableException::class, RuntimeException::class)
     private suspend fun fetchCampaignInternal(campaignId: Long) : CampaignData {
-        val result = httpClient.get("$baseUri/campaigns/$campaignId")
+        val result = httpClient.get("$baseUri/campaigns/$campaignId") {
+            timeout(patreonHttptimeout)
+        }
 
         if (result.status == HttpStatusCode.NotFound) throw CampaignNotFoundException("Campaign $campaignId gave 404 Not Found", campaignId)
         if (result.status == HttpStatusCode.Forbidden) throw CampaignForbiddenException("Access to campaign $campaignId is forbidden", campaignId)
