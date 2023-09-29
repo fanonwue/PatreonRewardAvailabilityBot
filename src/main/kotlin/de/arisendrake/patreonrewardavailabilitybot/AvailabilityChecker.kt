@@ -39,10 +39,9 @@ class AvailabilityChecker(
                     logger.debug { "Starting availability check for reward ${entry.rewardId}" }
                     async { doAvailabilityCheck(entry).also {
                         logger.debug { "Availability check resolved for reward ${entry.rewardId}" }
-                        send(it)
                     } }
-                }.awaitAll()
-            }
+                }
+            }.awaitAll().forEach { send(it) }
             close()
         }.filterNotNull()
         .onEach { bot.handleRewardAction(it) }
