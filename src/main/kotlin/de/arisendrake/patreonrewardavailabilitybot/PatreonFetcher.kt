@@ -85,8 +85,7 @@ class PatreonFetcher(
         logger.debug { "Checking availability for reward $rewardId" }
         // Since we are checking the CURRENT availability, we obviously have to skip the cache
         // The result will still be cached though, if the cache is enabled
-        val result = fetchReward(rewardId, false)
-        result.attributes.remaining to result
+        fetchReward(rewardId, false)
     }
 
     @Throws(RewardUnavailableException::class, RuntimeException::class)

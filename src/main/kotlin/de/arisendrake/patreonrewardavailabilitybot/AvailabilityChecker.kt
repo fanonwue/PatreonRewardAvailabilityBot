@@ -65,7 +65,7 @@ class AvailabilityChecker(
             val fetchResult = fetcher.checkAvailability(rewardId)
             RewardCheckResult(
                 rewardId,
-                fetchResult.second
+                fetchResult
             )
         } catch (e: RewardUnavailableException) {
             RewardCheckResult(
