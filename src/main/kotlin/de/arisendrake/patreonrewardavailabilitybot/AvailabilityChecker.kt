@@ -3,12 +3,12 @@ package de.arisendrake.patreonrewardavailabilitybot
 import de.arisendrake.patreonrewardavailabilitybot.exceptions.CampaignNotFoundException
 import de.arisendrake.patreonrewardavailabilitybot.exceptions.RewardForbiddenException
 import de.arisendrake.patreonrewardavailabilitybot.exceptions.RewardNotFoundException
+import de.arisendrake.patreonrewardavailabilitybot.exceptions.RewardUnavailableException
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardAction
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardActionType
+import de.arisendrake.patreonrewardavailabilitybot.model.RewardCheckResult
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardEntry
 import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries
-import de.arisendrake.patreonrewardavailabilitybot.model.patreon.RewardData
-import de.arisendrake.patreonrewardavailabilitybot.model.serializers.InstantSerializer
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -31,92 +31,120 @@ class AvailabilityChecker(
     fun check() = runBlocking {
         logger.info { "Checking reward availability..." }
 
-        val availableRewards = channelFlow {
-            newSuspendedTransaction(Config.dbContext) {
-                RewardEntry.all().map { entry ->
-                    // Delay to not overwhelm Patreon
-                    delay(100)
-                    logger.debug { "Starting availability check for reward ${entry.rewardId}" }
-                    async { doAvailabilityCheck(entry).also {
-                        logger.debug { "Availability check resolved for reward ${entry.rewardId}" }
-                    } }
-                }
-            }.awaitAll().forEach { send(it) }
+        val rewardCheckResults = channelFlow {
+            val processing = newSuspendedTransaction(Config.dbContext) {
+                RewardEntry.all().map { it.rewardId }
+            }.toHashSet().map { rewardId ->
+                delay(50)
+                logger.debug { "Starting availability check for reward $rewardId" }
+                async { checkReward(rewardId).also {
+                    logger.debug { "Availability check resolved for reward $rewardId" }
+                    send(it)
+                } }
+            }
+
+            // Wait for all deferred objects to resolve before closing the channel
+            processing.awaitAll()
             close()
         }.filterNotNull()
-        .onEach { bot.handleRewardAction(it) }
-        .filter { it.actionType == RewardActionType.NOTIFY_AVAILABLE }
         .toList()
 
+        val rewardActions = newSuspendedTransaction(Config.dbContext) { rewardCheckResults.mapNotNull {
+            handleResult(it)
+        } }.flatten()
+
+        bot.handleRewardActions(rewardActions)
+
+        val availableRewards = rewardActions.filter { it.actionType == RewardActionType.NOTIFY_AVAILABLE }
         logger.info { "${availableRewards.size} available rewards found" }
     }
 
-    private suspend inline fun Transaction.doAvailabilityCheck(entry: RewardEntry) = withSuspendTransaction {
-        logger.debug { "Checking reward availability for reward ${entry.id.value} (internal ID)" }
-        runCatching {
-            val result = fetcher.checkAvailability(entry.rewardId)
-            // Reward was found, so it's not missing
-            entry.isMissing = false
-            result.first?.let { remainingCount ->
-                if (remainingCount > 0) {
-                    logger.debug { "$remainingCount slots for available for reward $entry" }
-                    onRewardAvailability(result.second)
-                } else {
-                    entry.lastNotified = null
-                    entry.availableSince = null
-                    null
-                }
-            }
-        }.getOrElse {
-            var action: RewardAction? = null
-            when (it) {
-                is RewardNotFoundException -> {
-                    logger.warn { it.message ?: "Reward ${entry.id} not found" }
-                    if (Config.removeMissingRewards) {
-                        logger.info { "Removing missing reward ${entry.id} from the rewards list" }
-                        entry.delete()
-                    } else if (Config.notifyOnMissingRewards && !entry.isMissing) {
-                        logger.info { "Notifying user ${entry.chat.id.value} of missing reward ${entry.id}" }
-                        action = RewardAction(entry.chat.id.value, entry, RewardActionType.NOTIFY_MISSING)
-                    }
-                    entry.isMissing = true
-                }
-                is RewardForbiddenException -> {
-                    logger.warn { it.message ?: "Access to reward ${entry.id} is forbidden" }
-                    if (Config.notifyOnForbiddenRewards && !entry.isMissing) {
-                        logger.info { "Notifying user ${entry.chat.id.value} of reward ${entry.id} with forbidden access" }
-                        action = RewardAction(entry.chat.id.value, entry, RewardActionType.NOTIFY_FORBIDDEN)
-                    }
-                    entry.isMissing = true
-                }
-                else -> logger.error(it) { "An Error occured!" }
-            }
-            action
+    private suspend fun checkReward(rewardId: Long) : RewardCheckResult {
+        logger.debug { "Checking reward availability for reward $rewardId" }
+        return try {
+            val fetchResult = fetcher.checkAvailability(rewardId)
+            RewardCheckResult(
+                rewardId,
+                fetchResult.second
+            )
+        } catch (e: RewardUnavailableException) {
+            RewardCheckResult(
+                rewardId, null, e
+            )
         }
     }
 
-    private suspend inline fun Transaction.onRewardAvailability(reward: RewardData) = withSuspendTransaction {
-        RewardEntry.find { RewardEntries.rewardId eq reward.id }.firstOrNull()?.let { entry ->
-            if (entry.availableSince == null) entry.availableSince = Instant.now()
-            try {
-                if (entry.lastNotified == null || entry.availableSince!!.isAfter(entry.lastNotified)) {
-                    return@withSuspendTransaction RewardAction(
-                        entry.chat.id.value,
-                        entry,
-                        RewardActionType.NOTIFY_AVAILABLE,
-                        reward,
-                        fetcher.fetchCampaign(reward)
-                    )
-                } else {
-                    logger.info { "Notification for the availability of reward ${entry.id} has been sent already. Skipping." }
+    private suspend fun Transaction.handleResult(result: RewardCheckResult) = withSuspendTransaction {
+        val error = result.error
+
+        // Skip handling when nothing is available and no errors occurred
+        if (result.available == 0 && error == null) return@withSuspendTransaction null
+
+        RewardEntry.find { RewardEntries.rewardId eq result.rewardId }.mapNotNull { entry ->
+            var action: RewardAction? = null
+            // Handle errors
+            if (error != null) {
+                when(error) {
+                    is RewardNotFoundException -> {
+                        logger.warn { error.message ?: "Reward ${entry.id} not found" }
+                        if (Config.removeMissingRewards) {
+                            logger.info { "Removing missing reward ${entry.id} from the rewards list" }
+                            entry.delete()
+                        } else if (Config.notifyOnMissingRewards && !entry.isMissing) {
+                            logger.info { "Notifying user ${entry.chat.id.value} of missing reward ${entry.id}" }
+                            action = RewardAction(entry.chat.id.value, entry, RewardActionType.NOTIFY_MISSING)
+                        }
+                        entry.isMissing = true
+                    }
+                    is RewardForbiddenException -> {
+                        logger.warn { error.message ?: "Access to reward ${entry.id} is forbidden" }
+                        if (Config.notifyOnForbiddenRewards && !entry.isMissing) {
+                            logger.info { "Notifying user ${entry.chat.id.value} of reward ${entry.id} with forbidden access" }
+                            action = RewardAction(entry.chat.id.value, entry, RewardActionType.NOTIFY_FORBIDDEN)
+                        }
+                        entry.isMissing = true
+                    }
                 }
 
-            } catch (e: CampaignNotFoundException) {
-                logger.warn { e.message ?: "Campaign for reward ${entry.id} not found" }
-            } catch (t: Throwable) {
-                logger.error(t) { "An Error occured!" }
+                return@mapNotNull action
             }
-        } ?: logger.warn { "No RewardEntry found for rewardId ${reward.id}" }
+
+            if (result.available > 0) {
+                logger.debug { "${result.available} slots for available for reward $entry" }
+                handleAvailableReward(result, entry)
+            } else {
+                null
+            }
+        }
+    }
+
+    private suspend inline fun Transaction.handleAvailableReward(result: RewardCheckResult, entry: RewardEntry) = withSuspendTransaction {
+        val rewardData = result.rewardData
+        if (rewardData == null) {
+            logger.warn { "Reward data empty in handleAvailableReward()" }
+            return@withSuspendTransaction null
+        }
+
+        if (entry.availableSince == null) entry.availableSince = Instant.now()
+
+        try {
+            if (entry.lastNotified == null || entry.availableSince!!.isAfter(entry.lastNotified)) {
+                return@withSuspendTransaction RewardAction(
+                    entry.chat.id.value,
+                    entry,
+                    RewardActionType.NOTIFY_AVAILABLE,
+                    rewardData,
+                    fetcher.fetchCampaign(rewardData)
+                )
+            } else {
+                logger.info { "Notification for the availability of reward ${entry.id} has been sent already. Skipping." }
+            }
+
+        } catch (e: CampaignNotFoundException) {
+            logger.warn { e.message ?: "Campaign for reward ${entry.id} not found" }
+        } catch (t: Throwable) {
+            logger.error(t) { "An Error occured!" }
+        }
 
         null
     }
