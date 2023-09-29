@@ -7,7 +7,7 @@ import org.jetbrains.exposed.sql.javatime.timestamp
 
 object RewardEntries : IntIdTable() {
     val chat = reference("chat", Chats.id, ReferenceOption.CASCADE)
-    val rewardId = long("reward_id")
+    val rewardId = long("reward_id").index("reward_id_index")
     val availableSince = timestamp("available_since").nullable()
     val lastNotified = timestamp("last_notified").nullable()
     val isMissing = bool("is_missing").default(false)
