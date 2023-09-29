@@ -104,6 +104,9 @@ object Config {
     val cacheCampaignsMaxSize: Int
             by lazy { getValue("run.cacheCampaignsMaxSize", cacheRewardsMaxSize) }
 
+    val skipRewardEntryCheckIfEmptyAndNoError: Boolean
+            by lazy { getValue("run.skipRewardEntryCheckIfEmptyAndNoError", false) }
+
     private inline fun <reified T, reified R> getValue(key: String, default: R) = let {
         // Environment variables take precedence over any config file. If the corresponding env variable is not set,
         // this will fall back to reading from the config file. If it doesn't exist there either, the provided

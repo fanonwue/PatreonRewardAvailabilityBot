@@ -79,7 +79,8 @@ class AvailabilityChecker(
 
         // Skip handling when nothing is available and no errors occurred
         // Reset flags to default though
-        if (result.available == 0 && error == null) {
+        // Configurable via Config, defaults to false
+        if (Config.skipRewardEntryCheckIfEmptyAndNoError && result.available == 0 && error == null) {
             RewardEntries.update({ RewardEntries.rewardId eq result.rewardId }) {
                 it[isMissing] = false
                 it[availableSince] = null
