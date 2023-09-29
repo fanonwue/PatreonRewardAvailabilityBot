@@ -12,7 +12,6 @@ import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import org.jetbrains.exposed.dao.with
 import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.transactions.experimental.withSuspendTransaction
@@ -89,7 +88,7 @@ class AvailabilityChecker(
             return@withSuspendTransaction null
         }
 
-        RewardEntry.find { RewardEntries.rewardId eq result.rewardId }.with(RewardEntry::chat).mapNotNull { entry ->
+        RewardEntry.find { RewardEntries.rewardId eq result.rewardId }.mapNotNull { entry ->
             var action: RewardAction? = null
             // Handle errors
             if (error != null) {
