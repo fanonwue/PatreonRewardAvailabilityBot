@@ -16,8 +16,8 @@ import org.jetbrains.exposed.dao.with
 import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.transactions.experimental.withSuspendTransaction
+import org.jetbrains.exposed.sql.update
 import java.time.Instant
-import kotlin.coroutines.CoroutineContext
 
 class AvailabilityChecker(
     private val fetcher: PatreonFetcher,
@@ -79,7 +79,15 @@ class AvailabilityChecker(
         val error = result.error
 
         // Skip handling when nothing is available and no errors occurred
-        if (result.available == 0 && error == null) return@withSuspendTransaction null
+        // Reset flags to default though
+        if (result.available == 0 && error == null) {
+            RewardEntries.update({ RewardEntries.rewardId eq result.rewardId }) {
+                it[isMissing] = false
+                it[availableSince] = null
+                it[lastNotified] = null
+            }
+            return@withSuspendTransaction null
+        }
 
         RewardEntry.find { RewardEntries.rewardId eq result.rewardId }.with(RewardEntry::chat).mapNotNull { entry ->
             var action: RewardAction? = null
