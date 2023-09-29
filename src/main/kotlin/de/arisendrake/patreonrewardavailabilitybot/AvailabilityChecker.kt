@@ -118,10 +118,15 @@ class AvailabilityChecker(
                 return@mapNotNull action
             }
 
+            // It's not missing
+            entry.isMissing = false
+
             if (result.available > 0) {
                 logger.debug { "${result.available} slots for available for reward $entry" }
                 handleAvailableReward(result, entry)
             } else {
+                entry.lastNotified = null
+                entry.availableSince = null
                 null
             }
         }
