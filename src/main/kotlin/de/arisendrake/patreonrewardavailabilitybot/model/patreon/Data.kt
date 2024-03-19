@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 data class Data <T> (
     val attributes: T,
     val id: Long,
-    val relationships: Relationships
+    val relationships: Relationships? = null
 )
 
 typealias RewardData = Data<RewardsAttributes>

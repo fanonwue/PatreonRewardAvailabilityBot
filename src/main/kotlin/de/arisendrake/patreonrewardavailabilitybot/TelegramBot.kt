@@ -238,7 +238,7 @@ class TelegramBot(
                 if (e is CampaignUnavailableException) unavailableCampaigns[campaignId] = e.unavailabilityReason
                 null
             } } }.awaitAll().asSequence().filterNotNull().map {
-                it.relationships.rewards?.data
+                it.relationships?.rewards?.data
             }.filterNotNull().flatten().map { it.id }.filter { it > 0 }.toSet()
 
             val removedRewardIds = newSuspendedTransaction(Config.dbContext) {
@@ -360,7 +360,7 @@ class TelegramBot(
         val unavailableCampaigns = mutableMapOf<Long, UnavailabilityReason>()
         val unavailableRewards = mutableMapOf<Long, UnavailabilityReason>()
 
-        val fetchedRewardsByCampaign = newSuspendedTransaction(Config.dbContext) {
+        val (rewardsWithoutCampaign, rewardsWithCampaign) = newSuspendedTransaction(Config.dbContext) {
             currentChatWithRewardEntries(message).rewardEntries.map { it.rewardId }
         }.map { rewardId ->
             async { runCatching {
@@ -377,7 +377,11 @@ class TelegramBot(
                 }
                 null
             } }
-        }.awaitAll().filterNotNull().sortedBy { it.attributes.amountCents }.groupBy { it.relationships.campaign!!.data.id }
+        }.awaitAll().filterNotNull().sortedBy { it.attributes.amountCents }.partition { it.relationships?.campaign?.data?.id == null }
+
+        rewardsWithoutCampaign.forEach { unavailableRewards[it.id] = UnavailabilityReason.NO_CAMPAIGN }
+
+        val fetchedRewardsByCampaign = rewardsWithCampaign.groupBy { it.relationships!!.campaign!!.data.id }
 
         val fetchedCampaignsById = fetchedRewardsByCampaign.keys.map { async {
             runCatching {
@@ -457,7 +461,7 @@ class TelegramBot(
             null
         } ?: return@coroutineScope
 
-        val rewardIds = campaign.relationships.rewards?.data
+        val rewardIds = campaign.relationships?.rewards?.data
         if (rewardIds.isNullOrEmpty()) {
             reply(message, "No rewards found for campaign $campaignId")
             return@coroutineScope

@@ -116,10 +116,7 @@ class PatreonFetcher(
         if (result.status == HttpStatusCode.Forbidden) throw RewardForbiddenException("Access to reward $rewardId is forbidden", rewardId)
         if (result.status != HttpStatusCode.OK) throw RuntimeException("Received error while fetching reward $rewardId, status ${result.status}")
 
-        val deserializedBody = runCatching { result.body<Response<RewardsAttributes>>().data }.getOrNull()
-        if (deserializedBody == null) throw RuntimeException("Error deserializing reward response for reward $rewardId")
-
-        return deserializedBody
+        return result.body<Response<RewardsAttributes>>().data
     }
 
     @Throws(CampaignUnavailableException::class, RuntimeException::class)
@@ -153,7 +150,11 @@ class PatreonFetcher(
         return result.body<Response<CampaignAttributes>>().data
     }
 
-    @Throws(CampaignNotFoundException::class, RuntimeException::class)
-    suspend fun fetchCampaign(rewardsData: Data<RewardsAttributes>)
-        = fetchCampaign(rewardsData.relationships.campaign!!.data.id)
+    @Throws(CampaignUnavailableException::class, RuntimeException::class)
+    suspend fun fetchCampaign(rewardsData: Data<RewardsAttributes>) = let {
+        val campaignId = rewardsData.relationships?.campaign?.data?.id
+            ?: throw CampaignNotFoundException("Reward ${rewardsData.id} does not contain a relationship to a campaign")
+
+        fetchCampaign(campaignId)
+    }
 }

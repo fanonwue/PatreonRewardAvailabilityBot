@@ -1,9 +1,6 @@
 package de.arisendrake.patreonrewardavailabilitybot
 
-import de.arisendrake.patreonrewardavailabilitybot.exceptions.CampaignNotFoundException
-import de.arisendrake.patreonrewardavailabilitybot.exceptions.RewardForbiddenException
-import de.arisendrake.patreonrewardavailabilitybot.exceptions.RewardNotFoundException
-import de.arisendrake.patreonrewardavailabilitybot.exceptions.RewardUnavailableException
+import de.arisendrake.patreonrewardavailabilitybot.exceptions.*
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardAction
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardActionType
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardCheckResult
@@ -67,13 +64,9 @@ class AvailabilityChecker(
                 rewardId,
                 fetchResult
             )
-        } catch (e: RewardUnavailableException) {
-            RewardCheckResult(
-                rewardId, null, e
-            )
         } catch (e: RuntimeException) {
             RewardCheckResult(
-                rewardId, null
+                rewardId, null, e
             )
         }
     }
@@ -158,7 +151,7 @@ class AvailabilityChecker(
                 logger.info { "Notification for the availability of reward ${entry.id} has been sent already. Skipping." }
             }
 
-        } catch (e: CampaignNotFoundException) {
+        } catch (e: CampaignUnavailableException) {
             logger.warn { e.message ?: "Campaign for reward ${entry.id} not found" }
         } catch (t: Throwable) {
             logger.error(t) { "An Error occured!" }
