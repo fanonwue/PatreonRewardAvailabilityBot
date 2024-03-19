@@ -71,6 +71,10 @@ class AvailabilityChecker(
             RewardCheckResult(
                 rewardId, null, e
             )
+        } catch (e: RuntimeException) {
+            RewardCheckResult(
+                rewardId, null
+            )
         }
     }
 

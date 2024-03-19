@@ -116,7 +116,10 @@ class PatreonFetcher(
         if (result.status == HttpStatusCode.Forbidden) throw RewardForbiddenException("Access to reward $rewardId is forbidden", rewardId)
         if (result.status != HttpStatusCode.OK) throw RuntimeException("Received error while fetching reward $rewardId, status ${result.status}")
 
-        return result.body<Response<RewardsAttributes>>().data
+        val deserializedBody = runCatching { result.body<Response<RewardsAttributes>>().data }.getOrNull()
+        if (deserializedBody == null) throw RuntimeException("Error deserializing reward response for reward $rewardId")
+
+        return deserializedBody
     }
 
     @Throws(CampaignUnavailableException::class, RuntimeException::class)
