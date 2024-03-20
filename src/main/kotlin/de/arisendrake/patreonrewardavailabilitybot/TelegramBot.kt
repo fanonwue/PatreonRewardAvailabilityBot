@@ -167,7 +167,7 @@ class TelegramBot(
             }
             
             newSuspendedTransaction(Config.dbContext) {
-                // Preload current chat with rewardEntries already loaded to avoid N+1 problemmess
+                // Preload current chat with rewardEntries already loaded to avoid N+1 problems
                 val currentChat = currentChatWithRewardEntries(message)
                 val currentRewardIds = currentChat.rewardEntries.map { it.rewardId }
                 val uniqueNewIds = rewardIds.filter { it !in currentRewardIds }
@@ -177,15 +177,15 @@ class TelegramBot(
                     return@newSuspendedTransaction
                 }
 
-                uniqueNewIds.forEach {
+                val addedRewards = uniqueNewIds.map {
                     RewardEntry.new {
                         chat = currentChat
                         rewardId = it
                     }
                 }
 
-                reply(message, "Reward IDs [${uniqueNewIds.joinToString(", ")}] successfully added.".let {
-                    if (rewardIds.size > uniqueNewIds.size)
+                reply(message, "Reward IDs [${addedRewards.map { it.rewardId }.joinToString(", ")}] successfully added.".let {
+                    if (rewardIds.size > addedRewards.size)
                         "$it\nSome IDs have been added already and were filtered out."
                     else
                         it
