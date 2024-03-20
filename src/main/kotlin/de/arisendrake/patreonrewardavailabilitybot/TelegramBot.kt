@@ -177,18 +177,29 @@ class TelegramBot(
                     return@newSuspendedTransaction
                 }
 
-                val addedRewards = uniqueNewIds.map {
-                    RewardEntry.new {
-                        chat = currentChat
-                        rewardId = it
+                val addedRewards = uniqueNewIds.associateWith { newId ->
+                    RewardEntries.insertAndGetId {
+                        it[this.chat] = currentChat.id
+                        it[this.rewardId] = newId
                     }
                 }
 
-                reply(message, "Reward IDs [${addedRewards.map { it.rewardId }.joinToString(", ")}] successfully added.".let {
-                    if (rewardIds.size > addedRewards.size)
-                        "$it\nSome IDs have been added already and were filtered out."
-                    else
-                        it
+                val rewardsNotAdded = uniqueNewIds.filter { it !in addedRewards }
+
+                reply(message, "Reward IDs [${addedRewards.map { it.key }.joinToString(", ")}] successfully added.".let {
+                    val sb = StringBuilder(it)
+
+                    if (rewardIds.size > addedRewards.size) {
+                        sb.append("\n")
+                        sb.append("Some IDs have been added already and were filtered out.")
+                    }
+
+                    if (rewardsNotAdded.isNotEmpty()) {
+                        sb.append("\n")
+                        sb.append("The following IDs were not added to the database: [${rewardsNotAdded.joinToString(", ")}]")
+                    }
+
+                    sb.toString()
                 })
             }
 
