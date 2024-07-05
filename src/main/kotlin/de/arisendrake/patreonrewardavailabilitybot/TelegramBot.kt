@@ -11,7 +11,6 @@ import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries
 import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries.chat
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.*
 import de.arisendrake.patreonrewardavailabilitybot.model.serializers.InstantSerializer
-import dev.inmo.tgbotapi.abstracts.WithChat
 import dev.inmo.tgbotapi.extensions.api.bot.setMyCommands
 import dev.inmo.tgbotapi.extensions.api.edit.text.editMessageText
 import dev.inmo.tgbotapi.extensions.api.send.reply
@@ -25,7 +24,9 @@ import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onComman
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommandWithArgs
 import dev.inmo.tgbotapi.extensions.utils.fromUserMessageOrNull
 import dev.inmo.tgbotapi.types.BotCommand
+import dev.inmo.tgbotapi.types.LinkPreviewOptions
 import dev.inmo.tgbotapi.types.message.MarkdownParseMode
+import dev.inmo.tgbotapi.types.message.abstracts.AccessibleMessage
 import dev.inmo.tgbotapi.types.message.abstracts.Message
 import dev.inmo.tgbotapi.types.toChatId
 import io.ktor.client.*
@@ -224,7 +225,7 @@ class TelegramBot(
 
             newSuspendedTransaction(Config.dbContext) {
                 RewardEntries.deleteWhere {
-                    (chat eq message.chat.id.chatId) and (rewardId inList rewardIds)
+                    (chat eq message.chat.id.chatId.long) and (rewardId inList rewardIds)
                 }
             }
 
@@ -281,7 +282,7 @@ class TelegramBot(
             sendActionTyping(message.chat.id)
             val msg = reply(message, "Resetting last notification timestamps...")
             newSuspendedTransaction(Config.dbContext) {
-                RewardEntries.update({chat eq message.chat.id.chatId}, null) {
+                RewardEntries.update({chat eq message.chat.id.chatId.long}, null) {
                     it[lastNotified] = null
                 }
             }
@@ -340,7 +341,7 @@ class TelegramBot(
             }
 
             val newlyCreated = newSuspendedTransaction(Config.dbContext) {
-                Chat.findById(chatId)?.let { false } ?: Chat.new(chatId) {  }.let { true }
+                Chat.findById(chatId.long)?.let { false } ?: Chat.new(chatId.long) {  }.let { true }
             }
 
             if (!newlyCreated) return@onCommand
@@ -365,7 +366,7 @@ class TelegramBot(
 
     }.join()
 
-    private suspend inline fun BehaviourContext.onListCommand(message: Message) = coroutineScope {
+    private suspend inline fun BehaviourContext.onListCommand(message: AccessibleMessage) = coroutineScope {
         val rewardErrors = mutableListOf<Long>()
         val campaignErrors = mutableListOf<Long>()
         val unavailableCampaigns = mutableMapOf<Long, UnavailabilityReason>()
@@ -430,7 +431,7 @@ class TelegramBot(
         }
 
 
-        reply(message, messageContent, MarkdownParseMode, true)
+        reply(message, messageContent, parseMode = MarkdownParseMode, linkPreviewOptions = LinkPreviewOptions.Disabled)
 
         if (unavailableRewards.isNotEmpty()) sendTextMessage(
             message.chat.id,
@@ -453,7 +454,7 @@ class TelegramBot(
         )
     }
 
-    private suspend inline fun BehaviourContext.onCampaignAddCommand(message: Message, args: Array<String>) = coroutineScope {
+    private suspend inline fun BehaviourContext.onCampaignAddCommand(message: AccessibleMessage, args: Array<String>) = coroutineScope {
         if (args.size != 1) {
             reply(message, "Exactly one argument (the campaign's ID) is expected")
             return@coroutineScope
@@ -525,10 +526,10 @@ class TelegramBot(
         """.trimIndent()
     }.joinToString("\n")
 
-    private suspend inline fun localeForCurrentChat(message: WithChat) = localeForChat(message.chat.id.chatId)
+    private suspend inline fun localeForCurrentChat(message: Message) = localeForChat(message.chat.id.chatId.long)
     private suspend inline fun localeForChat(chatId: Long) = newSuspendedTransaction { localeForChat(chatId) }
     private fun Transaction.localeForChat(chatId: Long) = Chat.findById(chatId)?.locale ?: defaultLocale
-    private fun Transaction.currentChat(message: WithChat) = Chat[message.chat.id.chatId]
-    private fun Transaction.currentChatWithRewardEntries(message: WithChat) = currentChat(message).loadRewardEntries()
+    private fun Transaction.currentChat(message: Message) = Chat[message.chat.id.chatId.long]
+    private fun Transaction.currentChatWithRewardEntries(message: Message) = currentChat(message).loadRewardEntries()
 }
 

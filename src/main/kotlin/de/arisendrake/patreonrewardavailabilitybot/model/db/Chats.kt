@@ -8,6 +8,6 @@ import java.util.*
 object Chats : IdTable<Long>() {
     override val id = long("chat_id").entityId()
     override val primaryKey = PrimaryKey(id)
-    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp())
+    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
     val language = char("locale", 2).default(Locale.ENGLISH.language)
 }
