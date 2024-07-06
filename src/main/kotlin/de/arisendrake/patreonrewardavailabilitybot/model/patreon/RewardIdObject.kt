@@ -6,10 +6,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 @SerialName("reward")
-class RewardData(
-    override val attributes: RewardsAttributes,
-    val id: RewardIdAsLong,
-    override val relationships: Relationships? = null
-) : Data<RewardsAttributes>  {
-    override val rawId: Long = id.rawId
-}
+data class RewardIdObject(
+    val id: RewardIdAsLong
+)

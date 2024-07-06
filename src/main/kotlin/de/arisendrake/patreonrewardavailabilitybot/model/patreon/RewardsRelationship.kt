@@ -1,9 +1,9 @@
 package de.arisendrake.patreonrewardavailabilitybot.model.patreon
 
-import kotlinx.serialization.SerialName
+import de.arisendrake.patreonrewardavailabilitybot.model.serializers.RewardIdAsObject
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class RewardsRelationship(
-    val data: Collection<RewardId>
+    val data: Collection<RewardIdAsObject>
 )

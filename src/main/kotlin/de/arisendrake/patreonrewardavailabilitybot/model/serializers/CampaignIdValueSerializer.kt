@@ -9,7 +9,7 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 
-object CampaignIdSerializer : KSerializer<CampaignId> {
+object CampaignIdValueSerializer : KSerializer<CampaignId> {
     override fun serialize(encoder: Encoder, value: CampaignId) {
         encoder.encodeLong(value.id)
     }
@@ -21,4 +21,4 @@ object CampaignIdSerializer : KSerializer<CampaignId> {
     override val descriptor = PrimitiveSerialDescriptor("CampaignIdAsLong", PrimitiveKind.LONG)
 }
 
-typealias CampaignIdAsLong = @Serializable(with = CampaignIdSerializer::class) CampaignId
+typealias CampaignIdAsLong = @Serializable(with = CampaignIdValueSerializer::class) CampaignId
