@@ -1,12 +1,13 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 plugins {
     kotlin("jvm") version "2.0.0"
     kotlin("plugin.serialization") version "2.0.0"
     java
     application
-    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
+
+val outputDirectory = project.layout.buildDirectory.dir("./output")
+val libSubdirectory = "./lib/"
+val libOutputDirectory = outputDirectory.get().dir(libSubdirectory)
 
 group = "de.arisendrake"
 version = "1.0-SNAPSHOT"
@@ -51,20 +52,28 @@ application {
 }
 
 tasks {
-    named<Test>("test") {
+    register<Copy>("copyLibs") {
+        from(configurations.runtimeClasspath)
+        into(libOutputDirectory)
+    }
+
+    test {
         useJUnitPlatform()
     }
 
-    named<Jar>("jar") {
+    jar {
         manifest {
+            attributes["Main-Class"] = application.mainClass
             // Log4j2 requires this for better performance
             // https://issues.apache.org/jira/browse/LOG4J2-2537
             attributes["Multi-Release"] = true
+            attributes["Class-Path"] = configurations.runtimeClasspath.get().files.joinToString(" ") {
+                libSubdirectory + it.name
+            }
         }
-    }
-
-    named<ShadowJar>("shadowJar"){
-        mergeServiceFiles()
+        destinationDirectory.set(outputDirectory)
         archiveFileName.set("patreon-availability-bot.jar")
+
+        dependsOn("copyLibs")
     }
 }
