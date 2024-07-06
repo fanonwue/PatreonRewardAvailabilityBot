@@ -354,13 +354,15 @@ class TelegramBot(
                 Chat.findById(chatId.long)?.let { false } ?: Chat.new(chatId.long) {  }.let { true }
             }
 
+            val username = it.fromUserMessageOrNull()?.user?.username
+
             if (!newlyCreated) {
-                reply(it, "I know you already ;)")
+                reply(it, "I know you already $username ;)")
                 return@onCommand
             }
 
             reply(it,
-                "Welcome to the Patreon Rewards Availability Bot, ${it.fromUserMessageOrNull()?.user?.username?.username}"
+                "Welcome to the Patreon Rewards Availability Bot, $username"
             )
             logger.info { "Added new chat $chatId" }
         }
