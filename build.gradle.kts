@@ -1,9 +1,10 @@
 plugins {
     kotlin("jvm") version "2.0.0"
     kotlin("plugin.serialization") version "2.0.0"
-    java
     application
 }
+
+val jdkVersion = JavaLanguageVersion.of(21)
 
 val outputDirectory = project.layout.buildDirectory.dir("./output")
 val libSubdirectory = "./lib/"
@@ -43,7 +44,7 @@ dependencies {
 
 kotlin {
     jvmToolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = jdkVersion
     }
 }
 
