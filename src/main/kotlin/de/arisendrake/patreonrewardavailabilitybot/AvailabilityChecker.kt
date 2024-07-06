@@ -30,8 +30,11 @@ class AvailabilityChecker(
 
         val rewardCheckResults = channelFlow {
             val processing = newSuspendedTransaction(Config.dbContext) {
-                RewardEntry.all().map { it.rewardId }
-            }.toHashSet().map { rewardId ->
+                val idCol = RewardEntries.rewardId
+                RewardEntries.select(idCol).withDistinct().map {
+                    it[idCol]
+                }
+            }.map { rewardId ->
                 delay(50)
                 logger.debug { "Starting availability check for reward $rewardId" }
                 async { checkReward(rewardId).also {
