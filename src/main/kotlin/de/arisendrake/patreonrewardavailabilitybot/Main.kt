@@ -1,3 +1,5 @@
 package de.arisendrake.patreonrewardavailabilitybot
 
-fun main() = App.run()
+fun main() {
+    App.run()
+}

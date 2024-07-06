@@ -124,10 +124,10 @@ class TelegramBot(
 
         val text =
             """
-                New Reward available for <a href="${ca.url}">${ca.name}</a>
+                New Reward available for <a href="${ca.url}">${ca.name.escapeHtmlTg()}</a>
                 
                 Name:
-                <b>${ra.title}</b>
+                <b>${ra.title.escapeHtmlTg()}</b>
                 Cost:
                 <b>${ra.formattedAmountCurrency(locale)}</b>
                 ID:
@@ -500,7 +500,7 @@ class TelegramBot(
         val stringifiedRewardData = rewardData.map {
             val attributes = it.attributes
             """
-                <b>${attributes.title}</b> for ${attributes.formattedAmountCurrency(locale)}
+                <b>${attributes.title.escapeHtmlTg()}</b> for ${attributes.formattedAmountCurrency(locale)}
                 ID: <b>${it.id}</b>
             """.trimIndent()
         }
@@ -523,10 +523,10 @@ class TelegramBot(
         locale: Locale = defaultLocale
     ) : String {
         val ca = campaign.attributes
-        val campaignString = "<a href=\"${ca.url}\">${ca.name}</a>\n"
+        val campaignString = "<a href=\"${ca.url}\">${ca.name.escapeHtmlTg()}</a>\n"
         val rewardLines = rewards.map {
             val ra = it.attributes
-            "<b>${ra.title}</b> / ${ra.formattedAmountCurrency(locale)}\n(ID ${it.id})"
+            "<b>${ra.title.escapeHtmlTg()}</b> / ${ra.formattedAmountCurrency(locale)}\n(ID ${it.id})"
         }
 
         val joinedRewardLine = if (rewardLines.isEmpty()) "No rewards found for this campaign (how does this happen???)"
