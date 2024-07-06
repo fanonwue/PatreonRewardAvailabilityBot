@@ -49,6 +49,9 @@ object App {
         """.trimIndent().withoutNewlines()
         }
 
+        // Wait for the configured initial delay
+        Thread.sleep(Config.initialDelay.toMillis())
+
         while (true) {
             availabilityChecker.check()
             Thread.sleep(Config.interval.toMillis())
