@@ -20,7 +20,7 @@ data class RewardsAttributes(
     @SerialName("created_at") val createdAt: InstantAsIsoString,
     @SerialName("edited_at") val editedAt: InstantAsIsoString
 ) {
-    val fullUrl get() = URI.create(Config.baseDomain + url)
+    val fullUrl get(): URI = Config.patreonBaseDomain.resolve(url)
 
     val formattedAmount get() = formattedAmount()
 

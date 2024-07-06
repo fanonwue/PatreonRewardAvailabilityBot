@@ -7,12 +7,9 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.time.delay
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.plugins.*
-import java.time.Instant
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
 
 class PatreonFetcher(
@@ -54,7 +51,7 @@ class PatreonFetcher(
         campaignsCacheStore.removeInvalidCacheEntries()
     }
 
-    private val baseUri = "${Config.baseDomain}/api"
+    private val baseUri = Config.patreonBaseDomain.resolve("/api")
 
     private fun rewardFromCache(rewardId: Long) = rewardsCacheStore.getValueIfValid(rewardId)
 

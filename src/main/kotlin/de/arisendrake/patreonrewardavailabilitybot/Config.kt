@@ -8,6 +8,7 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.serialization.json.Json
+import java.net.URI
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.time.Duration
@@ -95,8 +96,8 @@ object Config {
     val initialDelay: Duration
             by lazy { getValue("run.initialDelay", 0) }
 
-    val baseDomain: String
-            by lazy { getValue("baseDomain", "https://www.patreon.com") }
+    val patreonBaseDomain: URI
+            by lazy { getValue("patreon.baseDomain", "https://www.patreon.com") }
 
     val databasePath: Path
             by lazy { getValue("run.databasePath", DEFAULT_DATA_PATH) }
@@ -127,6 +128,7 @@ object Config {
             key, when (R::class) {
                 Duration::class -> (default as Duration).seconds.toString()
                 Instant::class -> (default as Instant).toEpochMilli().toString()
+                URI::class -> (default as URI).toString()
                 else -> default.toString()
             }
         )
@@ -142,6 +144,7 @@ object Config {
             Path::class -> Paths.get(value)
             Duration::class -> Duration.ofSeconds(value.toLong())
             Instant::class -> Instant.ofEpochMilli(value.toLong())
+            URI::class -> URI.create(value)
 
             else -> throw IllegalArgumentException("Type ${T::class} is not supported")
         } as T
