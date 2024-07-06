@@ -12,6 +12,7 @@ import de.arisendrake.patreonrewardavailabilitybot.model.RewardActionType
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardEntry
 import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries
 import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries.chat
+import de.arisendrake.patreonrewardavailabilitybot.model.db.newSuspendedTransactionSingleThreaded
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.*
 import de.arisendrake.patreonrewardavailabilitybot.model.serializers.InstantSerializer
 import dev.inmo.tgbotapi.extensions.api.bot.setMyCommands
@@ -38,7 +39,6 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import java.time.Instant
 import java.util.*
 import kotlin.coroutines.CoroutineContext
@@ -87,7 +87,7 @@ class TelegramBot(
                 val rewardData = action.rewardData ?: fetcher.fetchReward(action.rewardId)
                 val campaignData = action.campaignData ?: fetcher.fetchCampaign(rewardData.relationships?.campaign?.data!!.id)
                 sendAvailabilityNotification(action.chatId, rewardData, campaignData)
-                newSuspendedTransaction(Config.dbContext) {
+                newSuspendedTransactionSingleThreaded {
                     action.rewardEntry.lastNotified = now
                 }
                 logger.info {
@@ -141,7 +141,7 @@ class TelegramBot(
         bot.sendTextMessage(chatId.toChatId(), text, HTML)
     }
 
-    suspend fun sendMissingRewardNotification(entry: RewardEntry) = newSuspendedTransaction(Config.dbContext) {
+    suspend fun sendMissingRewardNotification(entry: RewardEntry) = newSuspendedTransactionSingleThreaded {
         sendMissingRewardNotification(entry.chat.id.value, entry.rewardId)
     }
 
@@ -151,7 +151,7 @@ class TelegramBot(
         "WARNING: Reward with ID ${rewardId} could not be found. It may have been removed."
     )
 
-    suspend fun sendForbiddenRewardNotification(entry: RewardEntry) = newSuspendedTransaction(Config.dbContext) {
+    suspend fun sendForbiddenRewardNotification(entry: RewardEntry) = newSuspendedTransactionSingleThreaded {
         sendForbiddenRewardNotification(entry.chat.id.value, entry.rewardId)
     }
 
@@ -176,8 +176,8 @@ class TelegramBot(
                 reply(message, "One or multiple Rewards IDs expected as arguments")
                 return@onCommandWithArgs
             }
-            
-            newSuspendedTransaction(Config.dbContext) {
+
+            newSuspendedTransactionSingleThreaded {
                 // Preload current chat with rewardEntries already loaded to avoid N+1 problems
                 val currentChat = currentChatWithRewardEntries(message)
                 val currentRewardIds = currentChat.rewardEntries.map { it.rewardId }
@@ -185,7 +185,7 @@ class TelegramBot(
 
                 if (uniqueNewIds.isEmpty()) {
                     reply(message, "All IDs have been added already. No new ID has been added.")
-                    return@newSuspendedTransaction
+                    return@newSuspendedTransactionSingleThreaded
                 }
 
                 val addedRewards = uniqueNewIds.associateWith { newId ->
@@ -233,7 +233,7 @@ class TelegramBot(
                 return@onCommandWithArgs
             }
 
-            newSuspendedTransaction(Config.dbContext) {
+            newSuspendedTransactionSingleThreaded {
                 RewardEntries.deleteWhere {
                     (chat eq message.chat.id.chatId.long) and (rewardId inList rewardIds)
                 }
@@ -263,7 +263,7 @@ class TelegramBot(
                 it.relationships?.rewards?.data
             }.filterNotNull().flatten().filter { it.rawId > 0 }.toSet()
 
-            val removedRewardIds = newSuspendedTransaction(Config.dbContext) {
+            val removedRewardIds = newSuspendedTransactionSingleThreaded {
                 // Preload
                 val currentChat = currentChatWithRewardEntries(message)
                 val rewardEntriesToRemove = currentChat.rewardEntries.filter {
@@ -291,7 +291,7 @@ class TelegramBot(
         ).apply(addToCommandList), initialFilter = messageFilterCreatorOnly) { message ->
             sendActionTyping(message.chat.id)
             val msg = reply(message, "Resetting last notification timestamps...")
-            newSuspendedTransaction(Config.dbContext) {
+            newSuspendedTransactionSingleThreaded {
                 RewardEntries.update({chat eq message.chat.id.chatId.long}, null) {
                     it[lastNotified] = null
                 }
@@ -329,7 +329,7 @@ class TelegramBot(
             }
 
             val locale = Locale.forLanguageTag(code)
-            newSuspendedTransaction(Config.dbContext) {
+            newSuspendedTransactionSingleThreaded {
                 currentChat(message).locale = locale
             }
 
@@ -350,7 +350,7 @@ class TelegramBot(
                 return@onCommand
             }
 
-            val newlyCreated = newSuspendedTransaction(Config.dbContext) {
+            val newlyCreated = newSuspendedTransactionSingleThreaded {
                 Chat.findById(chatId.long)?.let { false } ?: Chat.new(chatId.long) {  }.let { true }
             }
 
@@ -387,7 +387,7 @@ class TelegramBot(
         val unavailableCampaigns = mutableMapOf<CampaignId, UnavailabilityReason>()
         val unavailableRewards = mutableMapOf<RewardId, UnavailabilityReason>()
 
-        val (rewardsWithoutCampaign, rewardsWithCampaign) = newSuspendedTransaction(Config.dbContext) {
+        val (rewardsWithoutCampaign, rewardsWithCampaign) = newSuspendedTransactionSingleThreaded {
             currentChatWithRewardEntries(message).rewardEntries.map { it.rewardId }
         }.map { rewardId ->
             async { runCatching {
@@ -544,7 +544,7 @@ class TelegramBot(
     }.joinToString("\n")
 
     private suspend inline fun localeForCurrentChat(message: Message) = localeForChat(message.chat.id.chatId.long)
-    private suspend inline fun localeForChat(chatId: Long) = newSuspendedTransaction(Config.dbContext) { localeForChat(chatId) }
+    private suspend inline fun localeForChat(chatId: Long) = newSuspendedTransactionSingleThreaded { localeForChat(chatId) }
     private fun Transaction.localeForChat(chatId: Long) = Chat.findById(chatId)?.locale ?: defaultLocale
     private fun Transaction.currentChat(message: Message) = Chat[message.chat.id.chatId.long]
     private fun Transaction.currentChatWithRewardEntries(message: Message) = currentChat(message).loadRewardEntries()

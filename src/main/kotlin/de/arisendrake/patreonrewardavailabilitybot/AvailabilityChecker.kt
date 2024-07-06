@@ -6,13 +6,13 @@ import de.arisendrake.patreonrewardavailabilitybot.model.RewardActionType
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardCheckResult
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardEntry
 import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries
+import de.arisendrake.patreonrewardavailabilitybot.model.db.newSuspendedTransactionSingleThreaded
+import de.arisendrake.patreonrewardavailabilitybot.model.db.withSuspendTransactionSingleThreaded
 import de.arisendrake.patreonrewardavailabilitybot.telegram.TelegramBot
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import org.jetbrains.exposed.sql.Transaction
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
-import org.jetbrains.exposed.sql.transactions.experimental.withSuspendTransaction
 import org.jetbrains.exposed.sql.update
 import java.time.Instant
 
@@ -30,7 +30,7 @@ class AvailabilityChecker(
         logger.info { "Checking reward availability..." }
 
         val rewardCheckResults = channelFlow {
-            val processing = newSuspendedTransaction(Config.dbContext) {
+            val processing = newSuspendedTransactionSingleThreaded {
                 val idCol = RewardEntries.rewardId
                 RewardEntries.select(idCol).withDistinct().map {
                     it[idCol]
@@ -50,7 +50,7 @@ class AvailabilityChecker(
         }.filterNotNull()
         .toList()
 
-        val rewardActions = newSuspendedTransaction(Config.dbContext) { rewardCheckResults.mapNotNull {
+        val rewardActions = newSuspendedTransactionSingleThreaded { rewardCheckResults.mapNotNull {
             handleResult(it)
         } }.flatten()
 
@@ -75,7 +75,7 @@ class AvailabilityChecker(
         }
     }
 
-    private suspend fun Transaction.handleResult(result: RewardCheckResult) = withSuspendTransaction {
+    private suspend fun Transaction.handleResult(result: RewardCheckResult) = withSuspendTransactionSingleThreaded {
         val error = result.error
 
         // Skip handling when nothing is available and no errors occurred
@@ -87,7 +87,7 @@ class AvailabilityChecker(
                 it[availableSince] = null
                 it[lastNotified] = null
             }
-            return@withSuspendTransaction null
+            return@withSuspendTransactionSingleThreaded null
         }
 
         RewardEntry.find { RewardEntries.rewardId eq result.rewardId }.mapNotNull { entry ->
@@ -133,18 +133,18 @@ class AvailabilityChecker(
         }
     }
 
-    private suspend inline fun Transaction.handleAvailableReward(result: RewardCheckResult, entry: RewardEntry) = withSuspendTransaction {
+    private suspend inline fun Transaction.handleAvailableReward(result: RewardCheckResult, entry: RewardEntry) = withSuspendTransactionSingleThreaded {
         val rewardData = result.rewardData
         if (rewardData == null) {
             logger.warn { "Reward data empty in handleAvailableReward()" }
-            return@withSuspendTransaction null
+            return@withSuspendTransactionSingleThreaded null
         }
 
         if (entry.availableSince == null) entry.availableSince = Instant.now()
 
         try {
             if (entry.lastNotified == null || entry.availableSince!!.isAfter(entry.lastNotified)) {
-                return@withSuspendTransaction RewardAction(
+                return@withSuspendTransactionSingleThreaded RewardAction(
                     entry.chat.id.value,
                     entry,
                     RewardActionType.NOTIFY_AVAILABLE,
