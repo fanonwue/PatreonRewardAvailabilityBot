@@ -141,7 +141,7 @@ class TelegramBot(
         bot.sendTextMessage(chatId.toChatId(), text, HTML)
     }
 
-    suspend fun sendMissingRewardNotification(entry: RewardEntry) = newSuspendedTransaction {
+    suspend fun sendMissingRewardNotification(entry: RewardEntry) = newSuspendedTransaction(Config.dbContext) {
         sendMissingRewardNotification(entry.chat.id.value, entry.rewardId)
     }
 
@@ -151,7 +151,7 @@ class TelegramBot(
         "WARNING: Reward with ID ${rewardId} could not be found. It may have been removed."
     )
 
-    suspend fun sendForbiddenRewardNotification(entry: RewardEntry) = newSuspendedTransaction {
+    suspend fun sendForbiddenRewardNotification(entry: RewardEntry) = newSuspendedTransaction(Config.dbContext) {
         sendForbiddenRewardNotification(entry.chat.id.value, entry.rewardId)
     }
 
@@ -542,7 +542,7 @@ class TelegramBot(
     }.joinToString("\n")
 
     private suspend inline fun localeForCurrentChat(message: Message) = localeForChat(message.chat.id.chatId.long)
-    private suspend inline fun localeForChat(chatId: Long) = newSuspendedTransaction { localeForChat(chatId) }
+    private suspend inline fun localeForChat(chatId: Long) = newSuspendedTransaction(Config.dbContext) { localeForChat(chatId) }
     private fun Transaction.localeForChat(chatId: Long) = Chat.findById(chatId)?.locale ?: defaultLocale
     private fun Transaction.currentChat(message: Message) = Chat[message.chat.id.chatId.long]
     private fun Transaction.currentChatWithRewardEntries(message: Message) = currentChat(message).loadRewardEntries()
