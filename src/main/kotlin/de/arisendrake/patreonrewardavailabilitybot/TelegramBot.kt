@@ -25,7 +25,7 @@ import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onComman
 import dev.inmo.tgbotapi.extensions.utils.fromUserMessageOrNull
 import dev.inmo.tgbotapi.types.BotCommand
 import dev.inmo.tgbotapi.types.LinkPreviewOptions
-import dev.inmo.tgbotapi.types.message.MarkdownParseMode
+import dev.inmo.tgbotapi.types.message.HTML
 import dev.inmo.tgbotapi.types.message.abstracts.AccessibleMessage
 import dev.inmo.tgbotapi.types.message.abstracts.Message
 import dev.inmo.tgbotapi.types.toChatId
@@ -81,7 +81,9 @@ class TelegramBot(
                     "Notification for the availability of reward ${action.rewardId} will be sent to chat ${action.chatId}"
                 }
                 val now = Instant.now()
-                sendAvailabilityNotification(action.chatId, action.rewardData!!, action.campaignData!!)
+                val rewardData = action.rewardData ?: fetcher.fetchReward(action.rewardId)
+                val campaignData = action.campaignData ?: fetcher.fetchCampaign(rewardData.relationships?.campaign?.data!!.id)
+                sendAvailabilityNotification(action.chatId, rewardData, campaignData)
                 newSuspendedTransaction(Config.dbContext) {
                     action.rewardEntry.lastNotified = now
                 }
@@ -115,20 +117,25 @@ class TelegramBot(
         val locale = localeForChat(chatId)
         val ca = campaign.attributes
         val ra = reward.attributes
+
+
         val text =
             """
-                New Reward available for [${ca.name}](${ca.url})!
+                New Reward available for <a href="${ca.url}">${ca.name}</a>
                 
-                Name: 
-                *${ra.title}*
-                Cost: 
-                *${ra.formattedAmountCurrency(locale)}*
+                Name:
+                <b>${ra.title}</b>
+                Cost:
+                <b>${ra.formattedAmountCurrency(locale)}</b>
                 ID:
                 ${reward.id}
-                
-                ([Join now!](${ra.fullUrl}))
+               
+                (<a href="${ra.fullUrl}">Join now!</a>)
             """.trimIndent()
-        bot.sendTextMessage(chatId.toChatId(), text, MarkdownParseMode)
+
+
+
+        bot.sendTextMessage(chatId.toChatId(), text, HTML)
     }
 
     suspend fun sendMissingRewardNotification(entry: RewardEntry) = newSuspendedTransaction {
@@ -431,7 +438,7 @@ class TelegramBot(
         }
 
 
-        reply(message, messageContent, parseMode = MarkdownParseMode, linkPreviewOptions = LinkPreviewOptions.Disabled)
+        reply(message, messageContent, parseMode = HTML, linkPreviewOptions = LinkPreviewOptions.Disabled)
 
         if (unavailableRewards.isNotEmpty()) sendTextMessage(
             message.chat.id,
@@ -487,13 +494,13 @@ class TelegramBot(
         val stringifiedRewardData = rewardData.map {
             val attributes = it.attributes
             """
-                *${attributes.title}* for ${attributes.formattedAmountCurrency(locale)}
-                ID: *${it.id}*
+                <b>${attributes.title}</b> for ${attributes.formattedAmountCurrency(locale)}
+                ID: <b>${it.id}</b>
             """.trimIndent()
         }
 
         reply(message, "The following rewards have been found:")
-        sendTextMessage(message.chat, stringifiedRewardData.joinToString(lineSeparator), MarkdownParseMode)
+        sendTextMessage(message.chat, stringifiedRewardData.joinToString(lineSeparator), HTML)
         sendTextMessage(message.chat, "You can add a reward by using the /add command.")
     }
     
@@ -510,10 +517,10 @@ class TelegramBot(
         locale: Locale = defaultLocale
     ) : String {
         val ca = campaign.attributes
-        val campaignString = "[${ca.name}](${ca.url})\n"
+        val campaignString = "<a href=\"${ca.url}\">${ca.name}</a>\n"
         val rewardLines = rewards.map {
             val ra = it.attributes
-            "*${ra.title}* / ${ra.formattedAmountCurrency(locale)}\n(ID ${it.id})"
+            "<b>${ra.title}</b> / ${ra.formattedAmountCurrency(locale)}\n(ID ${it.id})"
         }
 
         val joinedRewardLine = if (rewardLines.isEmpty()) "No rewards found for this campaign (how does this happen???)"
