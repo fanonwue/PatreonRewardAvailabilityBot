@@ -1,5 +1,8 @@
-package de.arisendrake.patreonrewardavailabilitybot
+package de.arisendrake.patreonrewardavailabilitybot.telegram
 
+import de.arisendrake.patreonrewardavailabilitybot.AvailabilityChecker
+import de.arisendrake.patreonrewardavailabilitybot.Config
+import de.arisendrake.patreonrewardavailabilitybot.PatreonFetcher
 import de.arisendrake.patreonrewardavailabilitybot.exceptions.CampaignUnavailableException
 import de.arisendrake.patreonrewardavailabilitybot.exceptions.RewardUnavailableException
 import de.arisendrake.patreonrewardavailabilitybot.exceptions.UnavailabilityReason

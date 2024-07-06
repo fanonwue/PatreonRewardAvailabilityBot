@@ -6,6 +6,7 @@ import de.arisendrake.patreonrewardavailabilitybot.model.RewardActionType
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardCheckResult
 import de.arisendrake.patreonrewardavailabilitybot.model.RewardEntry
 import de.arisendrake.patreonrewardavailabilitybot.model.db.RewardEntries
+import de.arisendrake.patreonrewardavailabilitybot.telegram.TelegramBot
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*

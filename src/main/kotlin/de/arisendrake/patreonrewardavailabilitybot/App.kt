@@ -1,8 +1,8 @@
 package de.arisendrake.patreonrewardavailabilitybot
 
 import de.arisendrake.patreonrewardavailabilitybot.model.db.DbHelper
+import de.arisendrake.patreonrewardavailabilitybot.telegram.TelegramBot
 import kotlinx.coroutines.*
-import kotlinx.coroutines.time.delay
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 object App {
