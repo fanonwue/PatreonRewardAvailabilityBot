@@ -1,4 +1,4 @@
-FROM gradle:8.3-jdk-alpine
+FROM gradle:8.8-jdk21-alpine
 
 ENV APP_HOME=/var/app/
 
@@ -9,7 +9,7 @@ COPY src/ src/
 
 RUN gradle --no-daemon clean shadowJar
 
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:21-jre-alpine
 ENV APP_HOME=/var/app
 WORKDIR $APP_HOME
 
