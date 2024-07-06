@@ -28,15 +28,14 @@ class PatreonFetcher(
         requestTimeoutMillis = PATREON_REQUEST_TIMEOUT
     }
 
-    private val cacheValidity = Config.cacheValidity
     private val cacheEvictionPeriod = Config.cacheEvictionPeriod
-    private val rewardsCacheStore = FetcherCacheStore(
-        ConcurrentHashMap<Long, Pair<Instant, RewardData>>(),
-        Config.cacheRewardsMaxSize
+    private val rewardsCacheStore = FetcherCacheStore<RewardData>(
+        Config.cacheRewardsMaxSize,
+        Config.cacheValidity
     )
-    private val campaignsCacheStore = FetcherCacheStore(
-        ConcurrentHashMap<Long, Pair<Instant, CampaignData>>(),
-        Config.cacheCampaignsMaxSize
+    private val campaignsCacheStore = FetcherCacheStore<CampaignData>(
+        Config.cacheCampaignsMaxSize,
+        Config.cacheValidity
     )
     private val allowCache = Config.useFetchCache
 
@@ -48,37 +47,18 @@ class PatreonFetcher(
         }
     }
 
-    private suspend fun removeInvalidCacheEntries(cacheStore: FetcherCacheStore<*>) = cacheStore.mutex.withLock {
-        val cache = cacheStore.cache
-        cache.removeAll(
-            cache.mapNotNull { (key, value) ->
-                if (isCacheValid(value.first)) null else key
-            }
-        )
-
-        if (cache.size > cacheStore.maxSize) {
-            // Evict oldest entries
-            val cacheElements = cache.toList().sortedByDescending { it.second.first }
-            cache.removeAll(
-                cacheElements.subList(cacheStore.maxSize, cacheElements.size).map { it.first }
-            )
-        }
-    }
-
-    private suspend fun evictCache() {
+    private fun evictCache() {
         logger.debug { "Evicting rewards cache" }
-        removeInvalidCacheEntries(rewardsCacheStore)
+        rewardsCacheStore.removeInvalidCacheEntries()
         logger.debug { "Evicting campaigns cache" }
-        removeInvalidCacheEntries(campaignsCacheStore)
+        campaignsCacheStore.removeInvalidCacheEntries()
     }
 
     private val baseUri = "${Config.baseDomain}/api"
 
-    private fun isCacheValid(cacheTime: Instant) = (Instant.now().epochSecond - cacheTime.epochSecond) < cacheValidity.seconds
+    private fun rewardFromCache(rewardId: Long) = rewardsCacheStore.getValueIfValid(rewardId)
 
-    private fun rewardFromCache(rewardId: Long) = rewardsCacheStore.get(rewardId)?.takeIf { isCacheValid(it.first) }?.second
-
-    private fun campaignFromCache(campaignId: Long) = campaignsCacheStore.get(campaignId)?.takeIf { isCacheValid(it.first) }?.second
+    private fun campaignFromCache(campaignId: Long) = campaignsCacheStore.getValueIfValid(campaignId)
 
     @Throws(RewardNotFoundException::class, RuntimeException::class)
     suspend fun checkAvailability(rewardId: Long) = let {
