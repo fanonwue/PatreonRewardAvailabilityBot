@@ -24,7 +24,7 @@ class PatreonFetcher(
         val logger = KotlinLogging.logger {}
     }
 
-    private val patreonHttptimeout: HttpTimeout.HttpTimeoutCapabilityConfiguration.() -> Unit = {
+    private val patreonHttpTimeout: HttpTimeout.HttpTimeoutCapabilityConfiguration.() -> Unit = {
         requestTimeoutMillis = PATREON_REQUEST_TIMEOUT
     }
 
@@ -109,7 +109,7 @@ class PatreonFetcher(
     @Throws(RewardUnavailableException::class, RuntimeException::class)
     private suspend fun fetchRewardInternal(rewardId: Long) : RewardData {
         val result = httpClient.get("$baseUri/rewards/$rewardId") {
-            timeout(patreonHttptimeout)
+            timeout(patreonHttpTimeout)
         }
 
         if (result.status == HttpStatusCode.NotFound) throw RewardNotFoundException("Reward $rewardId gave 404 Not Found", rewardId)
@@ -140,7 +140,7 @@ class PatreonFetcher(
     @Throws(CampaignUnavailableException::class, RuntimeException::class)
     private suspend fun fetchCampaignInternal(campaignId: Long) : CampaignData {
         val result = httpClient.get("$baseUri/campaigns/$campaignId") {
-            timeout(patreonHttptimeout)
+            timeout(patreonHttpTimeout)
         }
 
         if (result.status == HttpStatusCode.NotFound) throw CampaignNotFoundException("Campaign $campaignId gave 404 Not Found", campaignId)
