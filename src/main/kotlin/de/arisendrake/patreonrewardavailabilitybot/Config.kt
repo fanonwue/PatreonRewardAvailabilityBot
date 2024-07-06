@@ -5,20 +5,27 @@ import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.serialization.kotlinx.json.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.serialization.json.Json
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.time.Duration
 import java.time.Instant
 import java.util.*
-import kotlin.coroutines.CoroutineContext
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import kotlin.io.path.bufferedReader
 
 object Config {
     const val DEFAULT_CONFIG_PATH = "config/config.ini"
     const val DEFAULT_DATA_PATH = "data/main.db"
+
+    /**
+     * The sqlite3 driver uses JNI for its database interactions, which will lead to thread pinning when using virtual threads.
+     * As long as this restriction is in place, it's better to use a standalone platform thread instead.
+     */
+    const val ALLOW_VIRTUAL_DB_THREAD = true
 
     val charset = Charsets.UTF_8
 
@@ -56,8 +63,13 @@ object Config {
     val defaultLocale: Locale = Locale.ENGLISH
 
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val dbContext: CoroutineContext = Dispatchers.IO.limitedParallelism(1)
+    val dbExecutor: ExecutorService by lazy {
+        val builder = if (ALLOW_VIRTUAL_DB_THREAD) Thread.ofVirtual() else Thread.ofPlatform()
+        Executors.newSingleThreadExecutor(
+            builder.name("database").factory()
+        )
+    }
+    val dbContext: CoroutineDispatcher = dbExecutor.asCoroutineDispatcher()
 
     val removeMissingRewards: Boolean
             by lazy { getValue("run.removeMissingRewards", false) }
