@@ -136,7 +136,7 @@ class TelegramBot(
     }
 
     @SuppressWarnings("WeakerAccess")
-    suspend fun sendMissingRewardNotification(chatId: Long, rewardId: Long) = bot.sendTextMessage(
+    suspend fun sendMissingRewardNotification(chatId: Long, rewardId: RewardId) = bot.sendTextMessage(
         chatId.toChatId(),
         "WARNING: Reward with ID ${rewardId} could not be found. It may have been removed."
     )
@@ -146,7 +146,7 @@ class TelegramBot(
     }
 
     @SuppressWarnings("WeakerAccess")
-    suspend fun sendForbiddenRewardNotification(chatId: Long, rewardId: Long) = bot.sendTextMessage(
+    suspend fun sendForbiddenRewardNotification(chatId: Long, rewardId: RewardId) = bot.sendTextMessage(
         chatId.toChatId(),
         "WARNING: Access to reward with ID ${rewardId} is forbidden. It may have been removed."
     )
@@ -161,7 +161,7 @@ class TelegramBot(
             "Adds a reward ID to the list of observed rewards"
         ).apply(addToCommandList), initialFilter = messageFilterCreatorOnly) {message, args ->
             sendActionTyping(message.chat.id)
-            val rewardIds = parseIdList(args)
+            val rewardIds = parseIdList(args) { it.asRewardId() }
             if (rewardIds.isEmpty()) {
                 reply(message, "One or multiple Rewards IDs expected as arguments")
                 return@onCommandWithArgs
@@ -181,7 +181,7 @@ class TelegramBot(
                 val addedRewards = uniqueNewIds.associateWith { newId ->
                     RewardEntries.insertAndGetId {
                         it[this.chat] = currentChat.id
-                        it[this.rewardId] = newId
+                        it[this.rewardId] = newId.id
                     }
                 }
 
@@ -217,7 +217,7 @@ class TelegramBot(
             "Removes a reward ID from the list of observed rewards"
         ).apply(addToCommandList), initialFilter = messageFilterCreatorOnly) {message, args ->
             sendActionTyping(message.chat.id)
-            val rewardIds = parseIdList(args)
+            val rewardIds = parseIdList(args) { it }
             if (rewardIds.isEmpty()) {
                 reply(message, "One or multiple Rewards IDs expected as arguments")
                 return@onCommandWithArgs
@@ -236,13 +236,13 @@ class TelegramBot(
             "Removes all rewards associated with the specified campaign"
         ).apply(addToCommandList), initialFilter = messageFilterCreatorOnly) {message, args ->
             sendActionTyping(message.chat.id)
-            val campaignIds = parseIdList(args)
+            val campaignIds = parseIdList(args) { it.asCampaignId() }
             if (campaignIds.isEmpty()) {
                 reply(message, "One or multiple Campaign IDs expected as arguments")
                 return@onCommandWithArgs
             }
 
-            val unavailableCampaigns = mutableMapOf<Long, UnavailabilityReason>()
+            val unavailableCampaigns = mutableMapOf<CampaignId, UnavailabilityReason>()
 
             val rewardIds = campaignIds.map { campaignId -> async { runCatching {
                 fetcher.fetchCampaign(campaignId)
@@ -257,7 +257,7 @@ class TelegramBot(
                 // Preload
                 val currentChat = currentChatWithRewardEntries(message)
                 val rewardEntriesToRemove = currentChat.rewardEntries.filter {
-                    it.rewardId in rewardIds
+                    it.rewardId.id in rewardIds
                 }
 
                 // Using delete() on each entity here would create n delete queries, whereas this only creates a single query
@@ -367,10 +367,10 @@ class TelegramBot(
     }.join()
 
     private suspend inline fun BehaviourContext.onListCommand(message: AccessibleMessage) = coroutineScope {
-        val rewardErrors = mutableListOf<Long>()
-        val campaignErrors = mutableListOf<Long>()
-        val unavailableCampaigns = mutableMapOf<Long, UnavailabilityReason>()
-        val unavailableRewards = mutableMapOf<Long, UnavailabilityReason>()
+        val rewardErrors = mutableListOf<RewardId>()
+        val campaignErrors = mutableListOf<CampaignId>()
+        val unavailableCampaigns = mutableMapOf<CampaignId, UnavailabilityReason>()
+        val unavailableRewards = mutableMapOf<RewardId, UnavailabilityReason>()
 
         val (rewardsWithoutCampaign, rewardsWithCampaign) = newSuspendedTransaction(Config.dbContext) {
             currentChatWithRewardEntries(message).rewardEntries.map { it.rewardId }
@@ -497,8 +497,10 @@ class TelegramBot(
         sendTextMessage(message.chat, "You can add a reward by using the /add command.")
     }
     
-    private fun parseIdList(args: Array<String>)  = args.map { it.split(',') }.flatten()
+    private fun <T> parseIdList(args: Array<String>, transform: (Long) -> T) = args.asSequence()
+        .map { it.split(',') }.flatten()
         .mapNotNull { it.trim().toLongOrNull() }
+        .map(transform)
         .toSet()
 
 
@@ -520,7 +522,7 @@ class TelegramBot(
         return campaignString + joinedRewardLine
     }
 
-    private fun unavailableResourcesToString(unavailableResources: Map<Long, UnavailabilityReason>) = unavailableResources.mapNotNull {
+    private fun <T : PatreonId> unavailableResourcesToString(unavailableResources: Map<T, UnavailabilityReason>) = unavailableResources.mapNotNull {
         """
             ${it.key} (${it.value.displayName})
         """.trimIndent()

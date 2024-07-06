@@ -13,7 +13,7 @@ data class FetcherCacheStore<T : Data<*>>(
     private val cache: MutableMap<Long, Pair<Instant, T>> = mutableMapOf(),
     private val lock: ReadWriteLock = ReentrantReadWriteLock()
 ) {
-    fun put(value: T) = put(value.id, value)
+    fun put(value: T) = put(value.rawId, value)
     fun put(key: Long, value: T) = lock.writeLock().withLock {
         cache[key] = Instant.now() to value
     }

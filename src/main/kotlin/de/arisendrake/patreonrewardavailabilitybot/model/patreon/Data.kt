@@ -3,11 +3,8 @@ package de.arisendrake.patreonrewardavailabilitybot.model.patreon
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class Data <T> (
-    val attributes: T,
-    val id: Long,
-    val relationships: Relationships? = null
-)
-
-typealias RewardData = Data<RewardsAttributes>
-typealias CampaignData = Data<CampaignAttributes>
+sealed interface Data <T> {
+    val rawId: Long
+    val attributes: T
+    val relationships: Relationships?
+}

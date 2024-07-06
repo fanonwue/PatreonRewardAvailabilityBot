@@ -51,11 +51,11 @@ class PatreonFetcher(
         campaignsCacheStore.removeInvalidCacheEntries()
     }
 
-    private val baseUri = Config.patreonBaseDomain.resolve("/api")
+    private val baseUri = Config.patreonBaseDomain.resolve("/api/")
 
-    private fun rewardFromCache(rewardId: Long) = rewardsCacheStore.getValueIfValid(rewardId)
+    private fun rewardFromCache(rewardId: RewardId) = rewardsCacheStore.getValueIfValid(rewardId.id)
 
-    private fun campaignFromCache(campaignId: Long) = campaignsCacheStore.getValueIfValid(campaignId)
+    private fun campaignFromCache(campaignId: CampaignId) = campaignsCacheStore.getValueIfValid(campaignId.id)
 
     @Throws(RewardNotFoundException::class, RuntimeException::class)
     suspend fun checkAvailability(rewardId: Long) = let {
@@ -66,7 +66,10 @@ class PatreonFetcher(
     }
 
     @Throws(RewardUnavailableException::class, RuntimeException::class)
-    suspend fun fetchReward(rewardId: Long, useCache: Boolean = true) : RewardData {
+    suspend inline fun fetchReward(rewardId: Long, useCache: Boolean = true) = fetchReward(rewardId.asRewardId(), useCache)
+
+    @Throws(RewardUnavailableException::class, RuntimeException::class)
+    suspend fun fetchReward(rewardId: RewardId, useCache: Boolean = true) : RewardData {
         logger.debug { "Fetching reward $rewardId" }
         if (!this.allowCache) return fetchRewardInternal(rewardId).also {
             logger.trace { "Cache disabled globally, skipping" }
@@ -84,8 +87,8 @@ class PatreonFetcher(
     }
 
     @Throws(RewardUnavailableException::class, RuntimeException::class)
-    private suspend fun fetchRewardInternal(rewardId: Long) : RewardData {
-        val result = httpClient.get("$baseUri/rewards/$rewardId") {
+    private suspend fun fetchRewardInternal(rewardId: RewardId) : RewardData {
+        val result = httpClient.get(rewardId.apiUrl()) {
             timeout(patreonHttpTimeout)
         }
 
@@ -93,11 +96,14 @@ class PatreonFetcher(
         if (result.status == HttpStatusCode.Forbidden) throw RewardForbiddenException("Access to reward $rewardId is forbidden", rewardId)
         if (result.status != HttpStatusCode.OK) throw RuntimeException("Received error while fetching reward $rewardId, status ${result.status}")
 
-        return result.body<Response<RewardsAttributes>>().data
+        return result.body<Response<RewardsAttributes>>().data as RewardData
     }
 
+    @Throws(RewardUnavailableException::class, RuntimeException::class)
+    suspend inline fun fetchCampaign(campaignId: Long, useCache: Boolean = true) = fetchCampaign(campaignId.asCampaignId(), useCache)
+
     @Throws(CampaignUnavailableException::class, RuntimeException::class)
-    suspend fun fetchCampaign(campaignId: Long, useCache: Boolean = true) : CampaignData {
+    suspend fun fetchCampaign(campaignId: CampaignId, useCache: Boolean = true) : CampaignData {
         logger.debug { "Fetching campaign $campaignId" }
         if (!this.allowCache) return fetchCampaignInternal(campaignId).also {
             logger.trace { "Cache disabled globally, skipping" }
@@ -115,23 +121,26 @@ class PatreonFetcher(
     }
 
     @Throws(CampaignUnavailableException::class, RuntimeException::class)
-    private suspend fun fetchCampaignInternal(campaignId: Long) : CampaignData {
-        val result = httpClient.get("$baseUri/campaigns/$campaignId") {
+    private suspend fun fetchCampaignInternal(campaignId: CampaignId) : CampaignData {
+        val result = httpClient.get(campaignId.apiUrl()) {
             timeout(patreonHttpTimeout)
         }
 
         if (result.status == HttpStatusCode.NotFound) throw CampaignNotFoundException("Campaign $campaignId gave 404 Not Found", campaignId)
         if (result.status == HttpStatusCode.Forbidden) throw CampaignForbiddenException("Access to campaign $campaignId is forbidden", campaignId)
-        if (result.status != HttpStatusCode.OK) throw RuntimeException("Received error while fetching campaing $campaignId, status ${result.status}")
+        if (result.status != HttpStatusCode.OK) throw RuntimeException("Received error while fetching campaign $campaignId, status ${result.status}")
 
-        return result.body<Response<CampaignAttributes>>().data
+        return result.body<Response<CampaignAttributes>>().data as CampaignData
     }
 
     @Throws(CampaignUnavailableException::class, RuntimeException::class)
-    suspend fun fetchCampaign(rewardsData: Data<RewardsAttributes>) = let {
+    suspend fun fetchCampaign(rewardsData: RewardData) = let {
         val campaignId = rewardsData.relationships?.campaign?.data?.id
             ?: throw CampaignNotFoundException("Reward ${rewardsData.id} does not contain a relationship to a campaign")
 
         fetchCampaign(campaignId)
     }
+
+    private fun RewardId.apiUrl() = baseUri.resolve("rewards/${this.id}").toURL()
+    private fun CampaignId.apiUrl() = baseUri.resolve("campaigns/${this.id}").toURL()
 }

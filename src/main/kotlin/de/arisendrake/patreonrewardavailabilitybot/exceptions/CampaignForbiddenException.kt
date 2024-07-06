@@ -1,4 +1,6 @@
 package de.arisendrake.patreonrewardavailabilitybot.exceptions
 
-class CampaignForbiddenException(message: String? = null, campaignId: Long? = null, cause: Throwable? = null)
+import de.arisendrake.patreonrewardavailabilitybot.model.patreon.CampaignId
+
+class CampaignForbiddenException(message: String? = null, campaignId: CampaignId? = null, cause: Throwable? = null)
     : CampaignUnavailableException(message, campaignId, UnavailabilityReason.FORBIDDEN, cause)

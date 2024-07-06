@@ -22,16 +22,16 @@ data class RewardsAttributes(
 ) {
     val fullUrl get(): URI = Config.patreonBaseDomain.resolve(url)
 
-    val formattedAmount get() = formattedAmount()
-
+    @SuppressWarnings("WeakerAccess")
     val amountDecimal get() = amountCents.toDouble() / 100
 
-    fun formattedAmount(locale: Locale = Config.defaultLocale) = (NumberFormat.getNumberInstance(locale) as DecimalFormat).let {
+    @SuppressWarnings("WeakerAccess")
+    fun formattedAmount(locale: Locale = Config.defaultLocale): String = (NumberFormat.getNumberInstance(locale) as DecimalFormat).let {
         it.maximumFractionDigits = 2
         it.format(amountDecimal)
     }
 
-    fun formattedAmountCurrency(locale: Locale = Config.defaultLocale) = NumberFormat.getCurrencyInstance(locale).let {
+    fun formattedAmountCurrency(locale: Locale = Config.defaultLocale): String = NumberFormat.getCurrencyInstance(locale).let {
         it.currency = currency
         it.format(amountDecimal)
     }
