@@ -43,12 +43,12 @@ dependencies {
 
 kotlin {
     jvmToolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
 application {
-    mainClass.set("de.arisendrake.patreonrewardavailabilitybot.MainKt")
+    mainClass = "de.arisendrake.patreonrewardavailabilitybot.MainKt"
 }
 
 tasks {
@@ -71,8 +71,8 @@ tasks {
                 libSubdirectory + it.name
             }
         }
-        destinationDirectory.set(outputDirectory)
-        archiveFileName.set("patreon-availability-bot.jar")
+        destinationDirectory = outputDirectory
+        archiveFileName = "patreon-availability-bot.jar"
 
         dependsOn("copyLibs")
     }
