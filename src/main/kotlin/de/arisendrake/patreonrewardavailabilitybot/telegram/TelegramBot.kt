@@ -354,7 +354,10 @@ class TelegramBot(
                 Chat.findById(chatId.long)?.let { false } ?: Chat.new(chatId.long) {  }.let { true }
             }
 
-            if (!newlyCreated) return@onCommand
+            if (!newlyCreated) {
+                reply(it, "I know you already ;)")
+                return@onCommand
+            }
 
             reply(it,
                 "Welcome to the Patreon Rewards Availability Bot, ${it.fromUserMessageOrNull()?.user?.username?.username}"
