@@ -21,7 +21,7 @@ class Chat(id: EntityID<Long>) : LongEntity(id) {
      * 3-letter locale code
      */
     var locale: Locale by Chats.language.transform(
-        { it.language },
+        { it.language.uppercase() },
         { Locale.forLanguageTag(it) }
     )
 
