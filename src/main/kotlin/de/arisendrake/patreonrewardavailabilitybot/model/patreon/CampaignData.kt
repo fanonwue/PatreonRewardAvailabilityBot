@@ -11,5 +11,5 @@ class CampaignData(
     val id: CampaignIdAsLong,
     override val relationships: Relationships? = null
 ) : Data<CampaignAttributes>  {
-    override val rawId: Long = id.id
+    override val rawId get() = id.rawId
 }

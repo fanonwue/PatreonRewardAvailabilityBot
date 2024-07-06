@@ -53,9 +53,9 @@ class PatreonFetcher(
 
     private val baseUri = Config.patreonBaseDomain.resolve("/api/")
 
-    private fun rewardFromCache(rewardId: RewardId) = rewardsCacheStore.getValueIfValid(rewardId.id)
+    private fun rewardFromCache(rewardId: RewardId) = rewardsCacheStore.getValueIfValid(rewardId.rawId)
 
-    private fun campaignFromCache(campaignId: CampaignId) = campaignsCacheStore.getValueIfValid(campaignId.id)
+    private fun campaignFromCache(campaignId: CampaignId) = campaignsCacheStore.getValueIfValid(campaignId.rawId)
 
     @Throws(RewardNotFoundException::class, RuntimeException::class)
     suspend fun checkAvailability(rewardId: Long) = let {
@@ -141,6 +141,6 @@ class PatreonFetcher(
         fetchCampaign(campaignId)
     }
 
-    private fun RewardId.apiUrl() = baseUri.resolve("rewards/${this.id}").toURL()
-    private fun CampaignId.apiUrl() = baseUri.resolve("campaigns/${this.id}").toURL()
+    private fun RewardId.apiUrl() = baseUri.resolve("rewards/$this").toURL()
+    private fun CampaignId.apiUrl() = baseUri.resolve("campaigns/$this").toURL()
 }

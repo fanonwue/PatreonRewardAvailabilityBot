@@ -11,7 +11,7 @@ import kotlinx.serialization.encoding.Encoder
 
 object RewardIdValueSerializer : KSerializer<RewardId> {
     override fun serialize(encoder: Encoder, value: RewardId) {
-        encoder.encodeLong(value.id)
+        encoder.encodeLong(value.rawId)
     }
 
     override fun deserialize(decoder: Decoder): RewardId {

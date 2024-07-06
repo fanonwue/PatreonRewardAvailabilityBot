@@ -2,8 +2,9 @@ package de.arisendrake.patreonrewardavailabilitybot.model.patreon
 
 @JvmInline
 value class CampaignId(
-    override val id: Long
+    private val id: Long
 ): PatreonId {
+    override val rawId get() = id
     override fun toString() = id.toString()
 }
 

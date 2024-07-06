@@ -191,7 +191,7 @@ class TelegramBot(
                 val addedRewards = uniqueNewIds.associateWith { newId ->
                     RewardEntries.insertAndGetId {
                         it[this.chat] = currentChat.id
-                        it[this.rewardId] = newId.id
+                        it[this.rewardId] = newId.rawId
                     }
                 }
 
@@ -261,13 +261,13 @@ class TelegramBot(
                 null
             } } }.awaitAll().asSequence().filterNotNull().map {
                 it.relationships?.rewards?.data
-            }.filterNotNull().flatten().map { it.id }.filter { it > 0 }.toSet()
+            }.filterNotNull().flatten().filter { it.rawId > 0 }.toSet()
 
             val removedRewardIds = newSuspendedTransaction(Config.dbContext) {
                 // Preload
                 val currentChat = currentChatWithRewardEntries(message)
                 val rewardEntriesToRemove = currentChat.rewardEntries.filter {
-                    it.rewardId.id in rewardIds
+                    it.rewardId in rewardIds
                 }
 
                 // Using delete() on each entity here would create n delete queries, whereas this only creates a single query
@@ -495,7 +495,7 @@ class TelegramBot(
         }
 
         val rewardData = rewardIds.map {
-            async { runCatching { fetcher.fetchReward(it.id) }.getOrNull() }
+            async { runCatching { fetcher.fetchReward(it) }.getOrNull() }
         }.awaitAll().filterNotNull()
 
         val locale = localeForCurrentChat(message)

@@ -11,7 +11,7 @@ class RewardEntry(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<RewardEntry>(RewardEntries)
 
     var chat by Chat referencedOn RewardEntries.chat
-    var rewardId: RewardId by RewardEntries.rewardId.transform({ it.id }, { it.asRewardId() })
+    var rewardId: RewardId by RewardEntries.rewardId.transform({ it.rawId }, { it.asRewardId() })
     var availableSince by RewardEntries.availableSince
     var lastNotified by RewardEntries.lastNotified
     var isMissing by RewardEntries.isMissing
