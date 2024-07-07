@@ -1,6 +1,12 @@
 package de.arisendrake.patreonrewardavailabilitybot.telegram
 
 import de.arisendrake.patreonrewardavailabilitybot.model.patreon.PatreonId
+import dev.inmo.tgbotapi.extensions.utils.types.buttons.flatReplyKeyboard
+import dev.inmo.tgbotapi.extensions.utils.types.buttons.simpleButton
+
+val cancelMarkup = flatReplyKeyboard(resizeKeyboard = true, oneTimeKeyboard = true) {
+    simpleButton("Cancel")
+}
 
 val telegramHtmlEntities = hashMapOf(
     '&' to "&amp;",
