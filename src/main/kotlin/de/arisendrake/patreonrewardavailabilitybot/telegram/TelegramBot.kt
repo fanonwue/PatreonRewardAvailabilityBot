@@ -49,7 +49,7 @@ class TelegramBot(
     httpClient: HttpClient
 ) {
     companion object {
-        private const val lineSeparator = "\n-----------------------------------------\n"
+        private const val LINE_SEPARATOR = "\n-----------------------------------------\n"
         @JvmStatic
         private val logger = KotlinLogging.logger {  }
         private val defaultLocale = Config.defaultLocale
@@ -124,7 +124,7 @@ class TelegramBot(
 
         val text =
             """
-                New Reward available for <a href="${ca.url}">${ca.name.tgHtmlEscape()}</a>
+                New Reward available for <a href="${ca.fullUrl}">${ca.name.tgHtmlEscape()}</a>
                 
                 <a href="${ra.fullUrl}"><b>${ra.title.tgHtmlEscape()}</b></a>
                 for <b>${ra.formattedAmountCurrency(locale)}</b>
@@ -440,7 +440,7 @@ class TelegramBot(
             "No observed rewards found!"
         } else {
             groupedRewardsByCampaign.joinToString(
-                "\n\n",
+                "\n<b>$LINE_SEPARATOR</b>\n",
                 "The following rewards are being observed:\n\n"
             ) { formatForList(it.first, it.second, locale) }
         }
@@ -512,7 +512,7 @@ class TelegramBot(
         }
 
         reply(message, "The following rewards have been found:")
-        sendTextMessage(message.chat, stringifiedRewardData.joinToString(lineSeparator), HTML)
+        sendTextMessage(message.chat, stringifiedRewardData.joinToString(LINE_SEPARATOR), HTML)
         sendTextMessage(message.chat, "You can add a reward by using the /add command.")
     }
     
@@ -529,7 +529,7 @@ class TelegramBot(
         locale: Locale = defaultLocale
     ) : String {
         val ca = campaign.attributes
-        val campaignString = "<a href=\"${ca.url}\">${ca.name.tgHtmlEscape()}</a>\n"
+        val campaignString = "<a href=\"${ca.fullUrl}\"><b>${ca.name.tgHtmlEscape()}</b></a>"
         val rewardLines = rewards.map {
             val ra = it.attributes
             """
@@ -539,9 +539,9 @@ class TelegramBot(
         }
 
         val joinedRewardLine = if (rewardLines.isEmpty()) "No rewards found for this campaign (how does this happen???)"
-        else rewardLines.joinToString("\n")
+        else rewardLines.joinToString("\n\n")
 
-        return campaignString + joinedRewardLine
+        return campaignString + "\n\n" + joinedRewardLine
     }
 
     private fun <T : PatreonId> unavailableResourcesToString(unavailableResources: Map<T, UnavailabilityReason>) = unavailableResources.mapNotNull {
