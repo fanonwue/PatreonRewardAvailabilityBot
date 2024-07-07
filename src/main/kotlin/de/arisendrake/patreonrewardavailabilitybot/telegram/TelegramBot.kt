@@ -124,16 +124,12 @@ class TelegramBot(
 
         val text =
             """
-                New Reward available for <a href="${ca.url}">${ca.name.escapeHtmlTg()}</a>
+                New Reward available for <a href="${ca.url}">${ca.name.tgHtmlEscape()}</a>
                 
-                Name:
-                <b>${ra.title.escapeHtmlTg()}</b>
-                Cost:
-                <b>${ra.formattedAmountCurrency(locale)}</b>
-                ID:
-                ${reward.id}
-               
-                (<a href="${ra.fullUrl}">Join now!</a>)
+                <a href="${ra.fullUrl}"><b>${ra.title.tgHtmlEscape()}</b></a>
+                for <b>${ra.formattedAmountCurrency(locale)}</b>
+                
+                ID: ${reward.id.tgHtmlCode()}
             """.trimIndent()
 
 
@@ -148,7 +144,8 @@ class TelegramBot(
     @SuppressWarnings("WeakerAccess")
     suspend fun sendMissingRewardNotification(chatId: Long, rewardId: RewardId) = bot.sendTextMessage(
         chatId.toChatId(),
-        "WARNING: Reward with ID ${rewardId} could not be found. It may have been removed."
+        "WARNING: Reward with ID ${rewardId.tgHtmlCode()} could not be found. It may have been removed.",
+        parseMode = HTML
     )
 
     suspend fun sendForbiddenRewardNotification(entry: RewardEntry) = newSuspendedTransactionSingleThreaded {
@@ -158,7 +155,8 @@ class TelegramBot(
     @SuppressWarnings("WeakerAccess")
     suspend fun sendForbiddenRewardNotification(chatId: Long, rewardId: RewardId) = bot.sendTextMessage(
         chatId.toChatId(),
-        "WARNING: Access to reward with ID ${rewardId} is forbidden. It may have been removed."
+        "WARNING: Access to reward with ID ${rewardId.tgHtmlCode()} is forbidden. It may have been removed.",
+        parseMode = HTML
     )
 
     fun start(context: CoroutineContext = Dispatchers.IO) = CoroutineScope(context).launch { startInternal(this) }
@@ -192,26 +190,24 @@ class TelegramBot(
                     RewardEntries.insertAndGetId {
                         it[this.chat] = currentChat.id
                         it[this.rewardId] = newId.rawId
-                    }
+                    }.value
                 }
 
                 val rewardsNotAdded = uniqueNewIds.filter { it !in addedRewards }
 
-                reply(message, "Reward IDs [${addedRewards.map { it.key }.joinToString(", ")}] successfully added.".let {
-                    val sb = StringBuilder(it)
+                reply(message, buildString {
+                    append("Reward IDs [${addedRewards.keys.tgStringify()}] successfully added.")
 
                     if (rewardIds.size > addedRewards.size) {
-                        sb.append("\n")
-                        sb.append("Some IDs have been added already and were filtered out.")
+                        append("\n")
+                        append("Some IDs have been added already and were filtered out.")
                     }
 
                     if (rewardsNotAdded.isNotEmpty()) {
-                        sb.append("\n")
-                        sb.append("The following IDs were not added to the database: [${rewardsNotAdded.joinToString(", ")}]")
+                        append("\n")
+                        append("The following IDs were not added to the database: [${rewardsNotAdded.tgStringify()}]")
                     }
-
-                    sb.toString()
-                })
+                }, parseMode = HTML)
             }
 
         }
@@ -239,7 +235,11 @@ class TelegramBot(
                 }
             }
 
-            reply(message, "Reward IDs [${rewardIds.joinToString(", ")}] successfully removed.")
+            reply(
+                message,
+                "Reward IDs [${rewardIds.map { it.asRewardId() }.tgStringify()}] successfully removed.",
+                parseMode = HTML
+            )
         }
 
         onCommandWithArgs(BotCommand("remove_campaign",
@@ -277,7 +277,7 @@ class TelegramBot(
             }
 
             if (removedRewardIds.isNotEmpty()) {
-                reply(message, "Reward IDs [${removedRewardIds.joinToString(", ")}] successfully removed.")
+                reply(message, "Reward IDs [${removedRewardIds.tgStringify()}] successfully removed.", parseMode = HTML)
             } else {
                 reply(message, "No observed rewards corresponding to any of the specified campaign IDs found, nothing got removed.")
             }
@@ -450,22 +450,26 @@ class TelegramBot(
 
         if (unavailableRewards.isNotEmpty()) sendTextMessage(
             message.chat.id,
-            "The following rewards are not available anymore:\n\n" + unavailableResourcesToString(unavailableRewards)
+            "The following rewards are not available anymore:\n\n" + unavailableResourcesToString(unavailableRewards),
+            parseMode = HTML
         )
 
         if (unavailableCampaigns.isNotEmpty()) sendTextMessage(
             message.chat.id,
-            "The following campaigns are not available anymore:\n\n" + unavailableResourcesToString(unavailableCampaigns)
+            "The following campaigns are not available anymore:\n\n" + unavailableResourcesToString(unavailableCampaigns),
+            parseMode = HTML
         )
 
         if (rewardErrors.isNotEmpty()) sendTextMessage(
             message.chat.id,
-            "Error encountered fetching the following rewards:\n\n" + rewardErrors.joinToString(", ")
+            "Error encountered fetching the following rewards:\n\n" + rewardErrors.tgStringify(),
+            parseMode = HTML
         )
 
         if (campaignErrors.isNotEmpty()) sendTextMessage(
             message.chat.id,
-            "Error encountered fetching the following campaigns:\n\n" + campaignErrors.joinToString(", ")
+            "Error encountered fetching the following campaigns:\n\n" + campaignErrors.tgStringify(),
+            parseMode = HTML
         )
     }
 
@@ -502,8 +506,8 @@ class TelegramBot(
         val stringifiedRewardData = rewardData.map {
             val attributes = it.attributes
             """
-                <b>${attributes.title.escapeHtmlTg()}</b> for ${attributes.formattedAmountCurrency(locale)}
-                ID: <b>${it.id}</b>
+                <b>${attributes.title.tgHtmlEscape()}</b> for ${attributes.formattedAmountCurrency(locale)}
+                ID: ${it.id.tgHtmlCode()}
             """.trimIndent()
         }
 
@@ -525,10 +529,13 @@ class TelegramBot(
         locale: Locale = defaultLocale
     ) : String {
         val ca = campaign.attributes
-        val campaignString = "<a href=\"${ca.url}\">${ca.name.escapeHtmlTg()}</a>\n"
+        val campaignString = "<a href=\"${ca.url}\">${ca.name.tgHtmlEscape()}</a>\n"
         val rewardLines = rewards.map {
             val ra = it.attributes
-            "<b>${ra.title.escapeHtmlTg()}</b> / ${ra.formattedAmountCurrency(locale)}\n(ID ${it.id})"
+            """
+                <b>${ra.title.tgHtmlEscape()}</b> for ${ra.formattedAmountCurrency(locale)}
+                (ID ${it.id.tgHtmlCode()})
+            """.trimIndent()
         }
 
         val joinedRewardLine = if (rewardLines.isEmpty()) "No rewards found for this campaign (how does this happen???)"
@@ -539,7 +546,7 @@ class TelegramBot(
 
     private fun <T : PatreonId> unavailableResourcesToString(unavailableResources: Map<T, UnavailabilityReason>) = unavailableResources.mapNotNull {
         """
-            ${it.key} (${it.value.displayName})
+            ${it.key.tgHtmlCode()} -- ${it.value.displayName}
         """.trimIndent()
     }.joinToString("\n")
 

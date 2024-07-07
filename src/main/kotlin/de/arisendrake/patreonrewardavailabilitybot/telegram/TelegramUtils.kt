@@ -1,5 +1,7 @@
 package de.arisendrake.patreonrewardavailabilitybot.telegram
 
+import de.arisendrake.patreonrewardavailabilitybot.model.patreon.PatreonId
+
 val telegramHtmlEntities = hashMapOf(
     '&' to "&amp;",
     '<' to "&lt;",
@@ -12,7 +14,7 @@ val telegramHtmlEntities = hashMapOf(
  * The API only supports the following entities: `&lt;`, `&gt;` and `&amp;`, therefore only the characters corresponding
  * to those will be escaped
  */
-fun String.escapeHtmlTg() = this.escapeHtml(telegramHtmlEntities)
+fun String.tgHtmlEscape() = this.escapeHtml(telegramHtmlEntities)
 
 fun String.escapeHtml(replacementMap: Map<Char, String> = telegramHtmlEntities): String {
     val text = this@escapeHtml
@@ -23,4 +25,12 @@ fun String.escapeHtml(replacementMap: Map<Char, String> = telegramHtmlEntities):
             replacementMap[element]?.also { append(it) } ?: append(element)
         }
     }
+}
+
+fun String.tgHtmlCode() = "<code>$this</code>"
+fun PatreonId.tgHtmlCode() = toString().tgHtmlCode()
+
+fun <T : PatreonId> Iterable<T>.tgStringify(separator: String = ", ", useCodeFormatting: Boolean = true) = joinToString(separator) {
+    if (useCodeFormatting) return@joinToString it.tgHtmlCode()
+    it.toString()
 }
