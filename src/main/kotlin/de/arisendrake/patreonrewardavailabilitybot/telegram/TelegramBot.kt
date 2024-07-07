@@ -1,6 +1,5 @@
 package de.arisendrake.patreonrewardavailabilitybot.telegram
 
-import de.arisendrake.patreonrewardavailabilitybot.AvailabilityChecker
 import de.arisendrake.patreonrewardavailabilitybot.Config
 import de.arisendrake.patreonrewardavailabilitybot.PatreonFetcher
 import de.arisendrake.patreonrewardavailabilitybot.exceptions.CampaignUnavailableException
@@ -87,7 +86,7 @@ class TelegramBot(
         logger.debug { "Handling action for reward ${action.rewardId} of type ${action.actionType}" }
         when(action.actionType) {
             RewardActionType.NOTIFY_AVAILABLE -> {
-                AvailabilityChecker.logger.info {
+                logger.info {
                     "Notification for the availability of reward ${action.rewardId} will be sent to chat ${action.chatId}"
                 }
                 val now = Instant.now()
