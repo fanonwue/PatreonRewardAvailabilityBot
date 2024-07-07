@@ -176,69 +176,7 @@ class TelegramBot(
             "Adds one or more reward ID(s) to the list of observed rewards"
         ).apply(addToCommandList), initialFilter = messageFilterCreatorOnly) {message, args ->
             sendActionTyping(message.chat)
-            var replyTarget = message
-            var rewardIds = parseIdList(args) { it.asRewardId() }
-            while (rewardIds.isEmpty()) {
-                val response = waitTextMessage(SendTextMessage(
-                    message.chat.id,
-                    "Please enter a list of reward IDs that you'd like to add",
-                    replyMarkup = cancelMarkup,
-                    replyParameters = ReplyParameters(message)
-                )).first()
-
-                val textContent = response.content.text
-
-                if (textContent.lowercase() == "cancel") {
-                    sendTextMessage(message.chat, "Command was cancelled")
-                    return@onCommandWithArgs
-                }
-
-                replyTarget = response
-                rewardIds = parseIdList(textContent) { it.asRewardId() }
-            }
-
-            val placeholderMessage = reply(replyTarget, "Adding reward IDs...", replyMarkup = ReplyKeyboardRemove(), disableNotification = true)
-
-            // Preload current chat with rewardEntries already loaded to avoid N+1 problems
-            val currentChat = newSuspendedTransactionSingleThreaded { currentChat(message) }
-            val currentRewardIds = newSuspendedTransactionSingleThreaded {
-                currentChat.loadRewardEntries().rewardEntries.map { it.rewardId }
-            }
-            val uniqueNewIds = rewardIds.filter { it !in currentRewardIds }
-
-            if (uniqueNewIds.isEmpty()) {
-                deleteMessage(placeholderMessage)
-                reply(replyTarget, "All IDs have been added already. No new ID has been added.")
-                return@onCommandWithArgs
-            }
-
-            val addedRewards = newSuspendedTransactionSingleThreaded {
-                uniqueNewIds.associateWith { newId ->
-                    RewardEntries.insertAndGetId {
-                        it[this.chat] = currentChat.id
-                        it[this.rewardId] = newId.rawId
-                    }.value
-                }
-            }
-
-            val rewardsNotAdded = uniqueNewIds.filter { it !in addedRewards }
-
-            deleteMessage(placeholderMessage)
-            reply(replyTarget, buildString {
-                append("Reward IDs [${addedRewards.keys.tgStringify()}] successfully added.")
-
-                if (rewardIds.size > addedRewards.size) {
-                    append("\n")
-                    append("Some IDs have been added already and were filtered out.")
-                }
-
-                if (rewardsNotAdded.isNotEmpty()) {
-                    append("\n")
-                    append("The following IDs were not added to the database: [${rewardsNotAdded.tgStringify()}]")
-                }
-            }, parseMode = HTML)
-
-
+            onRewardAddCommand(message, args)
         }
 
         onCommandWithArgs(BotCommand("add_campaign",
@@ -252,83 +190,14 @@ class TelegramBot(
             "Removes a reward ID from the list of observed rewards"
         ).apply(addToCommandList), initialFilter = messageFilterCreatorOnly) {message, args ->
             sendActionTyping(message.chat)
-            var replyTarget = message
-            var rewardIds = parseIdList(args) { it }
-            while (rewardIds.isEmpty()) {
-                val response = waitTextMessage(SendTextMessage(
-                    message.chat.id,
-                    "Please enter a list of reward IDs that you'd like to remove",
-                    replyMarkup = cancelMarkup,
-                    replyParameters = ReplyParameters(message)
-                )).first()
-
-                val textContent = response.content.text
-
-                if (textContent.lowercase() == "cancel") {
-                    sendTextMessage(message.chat, "Command was cancelled")
-                    return@onCommandWithArgs
-                }
-
-                replyTarget = response
-                rewardIds = parseIdList(textContent) { it }
-            }
-
-            newSuspendedTransactionSingleThreaded {
-                RewardEntries.deleteWhere {
-                    (chat eq message.chat.id.chatId.long) and (rewardId inList rewardIds)
-                }
-            }
-
-            reply(
-                replyTarget,
-                "Reward IDs [${rewardIds.map { it.asRewardId() }.tgStringify()}] successfully removed.",
-                parseMode = HTML,
-                replyMarkup = ReplyKeyboardRemove()
-            )
+            onRewardRemoveCommand(message, args)
         }
 
         onCommandWithArgs(BotCommand("remove_campaign",
             "Removes all rewards associated with the specified campaign"
         ).apply(addToCommandList), initialFilter = messageFilterCreatorOnly) {message, args ->
             sendActionTyping(message.chat)
-            val campaignIds = parseIdList(args) { it.asCampaignId() }
-            if (campaignIds.isEmpty()) {
-                reply(message, "One or multiple Campaign IDs expected as arguments")
-                return@onCommandWithArgs
-            }
-
-            val unavailableCampaigns = mutableMapOf<CampaignId, UnavailabilityReason>()
-
-            val rewardIds = campaignIds.map { campaignId -> async { runCatching {
-                fetcher.fetchCampaign(campaignId)
-            }.getOrElse { e ->
-                if (e is CampaignUnavailableException) unavailableCampaigns[campaignId] = e.unavailabilityReason
-                null
-            } } }.awaitAll().asSequence().filterNotNull().map {
-                it.relationships?.rewards?.data
-            }.filterNotNull().flatten().filter { it.rawId > 0 }.toSet()
-
-            val removedRewardIds = newSuspendedTransactionSingleThreaded {
-                // Preload
-                val currentChat = currentChatWithRewardEntries(message)
-                val rewardEntriesToRemove = currentChat.rewardEntries.filter {
-                    it.rewardId in rewardIds
-                }
-
-                // Using delete() on each entity here would create n delete queries, whereas this only creates a single query
-                RewardEntries.deleteWhere { id inList rewardEntriesToRemove.map { it.id } }
-
-                rewardEntriesToRemove.map { it.rewardId }
-            }
-
-            if (removedRewardIds.isNotEmpty()) {
-                reply(message, "Reward IDs [${removedRewardIds.tgStringify()}] successfully removed.", parseMode = HTML)
-            } else {
-                reply(message, "No observed rewards corresponding to any of the specified campaign IDs found, nothing got removed.")
-            }
-
-            if (unavailableCampaigns.isNotEmpty()) sendTextMessage(message.chat,
-                "The following campaigns are unavailable:\n\n" + unavailableResourcesToString(unavailableCampaigns))
+            onCampaignRemoveCommand(message, args)
         }
         
         onCommand(BotCommand("reset_notifications",
@@ -413,17 +282,6 @@ class TelegramBot(
         }
 
         setMyCommands(botCommandList)
-
-//        onPhoto {
-//            val bytes = downloadFile(it.content)
-//            runCatchingSafely { setChatPhoto(it.chat.id, bytes.asMultipartFile("chat-photo.png")) }
-//                .onSuccess { b -> reply(it, if (b) "Updated chat photo!" else "Didn't update chat photo!")}
-//                .onFailure { e ->
-//                    logger.error(e) { "Something went wrong while updating chat photo" }
-//                    reply(it, "Error occurred. See logs.")
-//                }
-//        }
-
     }.join()
 
     private suspend inline fun BehaviourContext.onListCommand(message: AccessibleMessage) = coroutineScope {
@@ -518,6 +376,106 @@ class TelegramBot(
         )
     }
 
+    private suspend inline fun BehaviourContext.onRewardAddCommand(message: AccessibleMessage, args: Array<String>) = coroutineScope {
+        var replyTarget = message
+        var rewardIds = parseIdList(args) { it.asRewardId() }
+        while (rewardIds.isEmpty()) {
+            val response = waitTextMessage(SendTextMessage(
+                message.chat.id,
+                "Please enter a list of reward IDs that you'd like to add",
+                replyMarkup = cancelMarkup,
+                replyParameters = ReplyParameters(message)
+            )).first()
+
+            val textContent = response.content.text
+
+            if (textContent.lowercase() == "cancel") {
+                sendTextMessage(message.chat, "Command was cancelled")
+                return@coroutineScope
+            }
+
+            replyTarget = response
+            rewardIds = parseIdList(textContent) { it.asRewardId() }
+        }
+
+        val placeholderMessage = reply(replyTarget, "Adding reward IDs...", replyMarkup = ReplyKeyboardRemove(), disableNotification = true)
+
+        // Preload current chat with rewardEntries already loaded to avoid N+1 problems
+        val currentChat = newSuspendedTransactionSingleThreaded { currentChat(message) }
+        val currentRewardIds = newSuspendedTransactionSingleThreaded {
+            currentChat.loadRewardEntries().rewardEntries.map { it.rewardId }
+        }
+        val uniqueNewIds = rewardIds.filter { it !in currentRewardIds }
+
+        if (uniqueNewIds.isEmpty()) {
+            deleteMessage(placeholderMessage)
+            reply(replyTarget, "All IDs have been added already. No new ID has been added.")
+            return@coroutineScope
+        }
+
+        val addedRewards = newSuspendedTransactionSingleThreaded {
+            uniqueNewIds.associateWith { newId ->
+                RewardEntries.insertAndGetId {
+                    it[this.chat] = currentChat.id
+                    it[this.rewardId] = newId.rawId
+                }.value
+            }
+        }
+
+        val rewardsNotAdded = uniqueNewIds.filter { it !in addedRewards }
+
+        deleteMessage(placeholderMessage)
+        reply(replyTarget, buildString {
+            append("Reward IDs [${addedRewards.keys.tgStringify()}] successfully added.")
+
+            if (rewardIds.size > addedRewards.size) {
+                append("\n")
+                append("Some IDs have been added already and were filtered out.")
+            }
+
+            if (rewardsNotAdded.isNotEmpty()) {
+                append("\n")
+                append("The following IDs were not added to the database: [${rewardsNotAdded.tgStringify()}]")
+            }
+        }, parseMode = HTML)
+    }
+
+    private suspend inline fun BehaviourContext.onRewardRemoveCommand(message: AccessibleMessage, args: Array<String>) = coroutineScope {
+        var replyTarget = message
+        var rewardIds = parseIdList(args) { it }
+        while (rewardIds.isEmpty()) {
+            val response = waitTextMessage(SendTextMessage(
+                message.chat.id,
+                "Please enter a list of reward IDs that you'd like to remove",
+                replyMarkup = cancelMarkup,
+                replyParameters = ReplyParameters(message)
+            )).first()
+
+            val textContent = response.content.text
+
+            if (textContent.lowercase() == "cancel") {
+                sendTextMessage(message.chat, "Command was cancelled")
+                return@coroutineScope
+            }
+
+            replyTarget = response
+            rewardIds = parseIdList(textContent) { it }
+        }
+
+        newSuspendedTransactionSingleThreaded {
+            RewardEntries.deleteWhere {
+                (chat eq message.chat.id.chatId.long) and (rewardId inList rewardIds)
+            }
+        }
+
+        reply(
+            replyTarget,
+            "Reward IDs [${rewardIds.map { it.asRewardId() }.tgStringify()}] successfully removed.",
+            parseMode = HTML,
+            replyMarkup = ReplyKeyboardRemove()
+        )
+    }
+
     private suspend inline fun BehaviourContext.onCampaignAddCommand(message: AccessibleMessage, args: Array<String>) = coroutineScope {
         var replyTarget = message
         var rawCampaignId = args.firstOrNull()?.toLongOrNull()
@@ -577,6 +535,47 @@ class TelegramBot(
         sendTextMessage(message.chat, stringifiedRewardData.joinToString(LINE_SEPARATOR), parseMode = HTML, disableNotification = true)
         sendTextMessage(message.chat, "You can add a reward by using the /add command.", disableNotification = true)
 
+    }
+
+    private suspend inline fun BehaviourContext.onCampaignRemoveCommand(message: AccessibleMessage, args: Array<String>) = coroutineScope {
+        val campaignIds = parseIdList(args) { it.asCampaignId() }
+        if (campaignIds.isEmpty()) {
+            reply(message, "One or multiple Campaign IDs expected as arguments")
+            return@coroutineScope
+        }
+
+        val unavailableCampaigns = mutableMapOf<CampaignId, UnavailabilityReason>()
+
+        val rewardIds = campaignIds.map { campaignId -> async { runCatching {
+            fetcher.fetchCampaign(campaignId)
+        }.getOrElse { e ->
+            if (e is CampaignUnavailableException) unavailableCampaigns[campaignId] = e.unavailabilityReason
+            null
+        } } }.awaitAll().asSequence().filterNotNull().map {
+            it.relationships?.rewards?.data
+        }.filterNotNull().flatten().filter { it.rawId > 0 }.toSet()
+
+        val removedRewardIds = newSuspendedTransactionSingleThreaded {
+            // Preload
+            val currentChat = currentChatWithRewardEntries(message)
+            val rewardEntriesToRemove = currentChat.rewardEntries.filter {
+                it.rewardId in rewardIds
+            }
+
+            // Using delete() on each entity here would create n delete queries, whereas this only creates a single query
+            RewardEntries.deleteWhere { id inList rewardEntriesToRemove.map { it.id } }
+
+            rewardEntriesToRemove.map { it.rewardId }
+        }
+
+        if (removedRewardIds.isNotEmpty()) {
+            reply(message, "Reward IDs [${removedRewardIds.tgStringify()}] successfully removed.", parseMode = HTML)
+        } else {
+            reply(message, "No observed rewards corresponding to any of the specified campaign IDs found, nothing got removed.")
+        }
+
+        if (unavailableCampaigns.isNotEmpty()) sendTextMessage(message.chat,
+            "The following campaigns are unavailable:\n\n" + unavailableResourcesToString(unavailableCampaigns))
     }
 
     private fun <T> parseIdList(text: String, transform: (Long) -> T) = parseIdList(text.splitToSequence(',', ' '), transform)
