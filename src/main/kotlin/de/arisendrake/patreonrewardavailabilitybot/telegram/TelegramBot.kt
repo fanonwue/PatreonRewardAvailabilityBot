@@ -390,7 +390,7 @@ class TelegramBot(
             val textContent = response.content.text
 
             if (textContent.lowercase() == "cancel") {
-                sendTextMessage(message.chat, "Command was cancelled")
+                sendCommandCancelMessage(message)
                 return@coroutineScope
             }
 
@@ -454,7 +454,7 @@ class TelegramBot(
             val textContent = response.content.text
 
             if (textContent.lowercase() == "cancel") {
-                sendTextMessage(message.chat, "Command was cancelled")
+                sendCommandCancelMessage(message)
                 return@coroutineScope
             }
 
@@ -490,7 +490,7 @@ class TelegramBot(
             val textContent = response.content.text
 
             if (textContent.lowercase() == "cancel") {
-                sendTextMessage(message.chat, "Command was cancelled")
+                sendCommandCancelMessage(message)
                 return@coroutineScope
             }
 
