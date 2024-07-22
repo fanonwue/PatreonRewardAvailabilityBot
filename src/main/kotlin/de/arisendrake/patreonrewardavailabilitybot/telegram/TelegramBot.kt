@@ -280,6 +280,20 @@ class TelegramBot(
             logger.info { "Added new chat $chatId" }
         }
 
+        onCommand(BotCommand("privacy",
+            "Privacy policy"
+        ).apply(addToCommandList)) {
+            reply(it, """
+                This bot saves the following user information:
+                
+                - Your Chat ID (to match your watched Patreon Rewards to your Telegram account). 
+                This is also used to instruct the Telegram API which Chat to send a message to.
+                - Your langauge setting that you provided via the /language command
+                - Your watched Patreon Rewrads, associated with your Chat ID 
+                (to be able to check them regularly and inform you about available rewards)
+            """.trimIndent(), parseMode = HTML)
+        }
+
         setMyCommands(botCommandList)
     }.join()
 
